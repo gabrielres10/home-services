@@ -12,7 +12,7 @@ export function canTransitionReadingStatus(input: {
   const { from, to, role } = input;
 
   if (from === to) {
-    return true;
+    return to !== "approved";
   }
 
   if (role === "floor_user") {

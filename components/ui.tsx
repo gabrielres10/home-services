@@ -1,3 +1,5 @@
+import { floorDisplayName } from "@/lib/domain/floors";
+
 export function HouseMark({ size = "sm" }: { size?: "sm" | "lg" }) {
   return (
     <span className={size === "lg" ? "house-mark house-mark-lg" : "house-mark"} aria-hidden>
@@ -99,10 +101,7 @@ export function FloorBand({
     <section id={id} className={`floor-band floor-band-${tone}`}>
       <header className="floor-band-head">
         <p className="kicker">Empieza {name}</p>
-        <h3 className="floor-band-title">
-          {name}
-          {occupant ? <span className="floor-band-occupant">{occupant}</span> : null}
-        </h3>
+        <h3 className="floor-band-title">{floorDisplayName(name, occupant)}</h3>
         {status}
       </header>
       {children}

@@ -158,15 +158,26 @@ export function ReadingReviewCard({
               <NumericInput
                 name="corrected_value"
                 defaultValue={value === null ? "" : numberToInputRaw(value)}
+                disabled={status === "approved"}
               />
             </label>
-            {warningsNeedConfirm ? (
+            {warningsNeedConfirm && status !== "approved" ? (
               <label className="flex items-start gap-2 text-[0.9rem]">
                 <input type="checkbox" name="confirm_warnings" className="mt-1 accent-forest" />
                 <span>Revisé los avisos y confirmo la aprobación.</span>
               </label>
             ) : null}
-            <SubmitButton variant="approve">Aprobar</SubmitButton>
+            <SubmitButton
+              variant="approve"
+              disabled={status === "approved"}
+              title={
+                status === "approved"
+                  ? "Ya está aprobada. Recházala si hay que volver a revisarla."
+                  : undefined
+              }
+            >
+              Aprobar
+            </SubmitButton>
           </ActionForm>
           <ActionForm action={rejectReading} className="stack-md">
             <input type="hidden" name="reading_id" value={readingId} />

@@ -34,6 +34,15 @@ describe("reading state transitions", () => {
     expect(
       canTransitionReadingStatus({ from: "pending", to: "rejected", role: "admin" }),
     ).toBe(true);
+    expect(
+      canTransitionReadingStatus({ from: "approved", to: "approved", role: "admin" }),
+    ).toBe(false);
+    expect(
+      canTransitionReadingStatus({ from: "approved", to: "rejected", role: "admin" }),
+    ).toBe(true);
+    expect(
+      canTransitionReadingStatus({ from: "rejected", to: "approved", role: "admin" }),
+    ).toBe(true);
   });
 
   it("una lectura aprobada no es editable por el piso", () => {
