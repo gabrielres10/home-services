@@ -1,36 +1,299 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Servicios de la vivienda
 
-## Getting Started
+Aplicación web para recopilar, validar y organizar los recibos y las lecturas de servicios públicos de una vivienda de tres pisos. La liquidación (cuánto paga cada persona) **no está implementada todavía**; el código deja un módulo `CalculationEngine` listo para incorporar las fórmulas de Excel más adelante.
 
-First, run the development server:
+Prioridad: corrección, trazabilidad y simplicidad. Pensada para uso familiar, con despliegue en Vercel y backend en Supabase.
+
+## Qué hace esta versión
+
+Como administrador puedes:
+
+1. Crear un período (no tiene que ser un mes calendario).
+2. Cargar el PDF del recibo y registrar los consumos totales de energía, agua y alcantarillado.
+3. Ver qué lecturas faltan.
+4. Revisar lecturas enviadas, ver la fotografía, corregir el valor, aprobar o rechazar.
+5. Obtener automáticamente el consumo de cada piso con contador (`lectura actual − lectura anterior aprobada`).
+6. Obtener el consumo del Piso 3 por diferencia.
+7. Copiar el consumo de alcantarillado desde el de agua.
+8. Consultar períodos anteriores.
+
+Como usuario de un piso con contador (Piso 1 o Piso 2) puedes:
+
+1. Iniciar sesión.
+2. Ver los períodos abiertos.
+3. Introducir solo la lectura actual (la anterior la resuelve el sistema).
+4. Subir una fotografía del contador.
+5. Ver si fue aprobada o si requiere corrección.
+
+## Arquitectura
+
+Una sola aplicación Next.js (App Router). No hay servidor propio ni backend separado.
+
+```text
+Autenticación (Supabase Auth)
+    → Gestión de períodos
+    → Gestión de recibos (PDF + totales; extractor intercambiable)
+    → Gestión de lecturas + fotos
+    → Validación (lib/domain)
+    → Cálculo de consumos (lib/domain)
+    → Liquidación futura (CalculationEngine)
+```
+
+La UI no contiene las reglas de cálculo. Esas reglas viven en `lib/domain/` y se testean con Vitest.
+
+El recibo entra por una abstracción:
+
+```text
+PDF → BillExtractor.extract() → datos del recibo → validación → período
+```
+
+Hoy `ManualBillExtractor` usa los valores que escribe el administrador. Más adelante se puede sustituir por un parser en el navegador, sin reescribir el resto del sistema.
+
+## Tecnologías
+
+- Next.js (App Router) y TypeScript estricto
+- Tailwind CSS
+- Supabase: PostgreSQL, Auth, Storage y Row Level Security
+- Vercel para el despliegue
+- Vitest para tests de dominio
+
+## Modelo de negocio (confirmado)
+
+- Piso 1 y Piso 2 tienen contador de **energía** y **agua**.
+- Piso 3 no tiene contador: su consumo es `total del recibo − Piso 1 − Piso 2`.
+- **Alcantarillado** no tiene contador. El consumo de cada piso es el mismo que el de agua.
+- Hay un PDF por período. Los totales se capturan a mano en esta versión.
+- Una lectura pendiente o rechazada **nunca** se usa como lectura anterior. Solo la última lectura **aprobada**.
+- Si el consumo del Piso 3 sale negativo, el período no se puede marcar como listo.
+
+## Estructura de la base de datos
+
+Tablas principales (definidas en `supabase/migrations/001_schema.sql`):
+
+| Tabla | Propósito |
+| --- | --- |
+| `profiles` | Perfil 1:1 con `auth.users`. Rol `admin` o `floor_user`. |
+| `floors` | Piso 1, Piso 2, Piso 3. |
+| `services` | Energía, agua, alcantarillado. Alcantarillado se marca como `copied` desde agua. |
+| `floor_service_meters` | Qué combinaciones piso/servicio tienen contador. |
+| `floor_memberships` | Usuario de piso → un piso. |
+| `billing_periods` | Período con `label`, `starts_on`, `ends_on`, `status` (`open`, `ready`, `closed`). |
+| `bills` | Recibo 1:1 con el período y ruta del PDF. |
+| `bill_service_totals` | Consumo total por servicio en el recibo. |
+| `meter_readings` | Lectura vigente por período + piso + servicio. Guarda `submitted_value` (original) y `value` (vigente). Estados: `pending`, `approved`, `rejected`. |
+| `reading_photos` | Fotografías; las anteriores no se borran. |
+| `audit_logs` | Quién cambió qué, con valor anterior y nuevo. Lo rellenan triggers. |
+
+Consumos **no** se persisten: se calculan.
+
+## Instalación
+
+Requisitos: Node.js 20 o superior y una cuenta de [Supabase](https://supabase.com).
+
+```bash
+git clone <url-del-repositorio>
+cd home-services
+npm install
+copy .env.example .env.local
+```
+
+En macOS/Linux usa `cp .env.example .env.local`.
+
+Edita `.env.local`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+```
+
+Esas claves están en Supabase: **Project Settings → API**.
+
+## Configuración de Supabase
+
+### 1. Proyecto
+
+Crea un proyecto en el dashboard de Supabase.
+
+### 2. Autenticación
+
+En **Authentication → Providers** deja habilitado Email.
+
+En **Authentication → Settings** (o Providers → Email):
+
+- Desactiva **Confirm email** para uso familiar, o confirma el correo de cada usuario a mano. Si queda activo y nadie confirma, no podrán entrar.
+
+No implementes un sistema propio de contraseñas. Las cuentas se crean en Supabase Auth.
+
+### 3. Esquema, RLS y buckets
+
+Añade en `.env.local` la contraseña de la base de datos (la que definiste al crear el proyecto). Si no la recuerdas: **Project Settings → Database** → **Reset database password**.
+
+```
+SUPABASE_DB_PASSWORD=tu_contraseña_de_postgres
+```
+
+En la raíz del proyecto:
+
+```bash
+npm run db:schema
+```
+
+Eso ejecuta `supabase/migrations/001_schema.sql`: tablas, RLS, auditoría, semilla (3 pisos, 3 servicios, 4 contadores) y buckets privados `bills` y `reading-photos`.
+
+Si `db.<proyecto>.supabase.co` no conecta (IPv6 / red), copia en `.env.local` la URI de **Project Settings → Database → Connect → Session pooler** como `DATABASE_URL` y vuelve a correr el comando. `DATABASE_URL` tiene prioridad sobre `SUPABASE_DB_PASSWORD`.
+
+También puedes pegar el SQL a mano en **SQL Editor**. Si alguna política de Storage ya existía, el script usa `drop policy if exists` y suele ser seguro repetirlo.
+
+### 4. Crear usuarios (admin, Piso 1 y Piso 2)
+
+Estos comandos crean la cuenta en Supabase Auth, confirman el correo, asignan el rol y, si corresponde, el piso.
+
+Primero añade en `.env.local` la clave **secret** / **service_role** (no la anon):
+
+```
+SUPABASE_SERVICE_ROLE_KEY=pega_aqui_la_clave_secret
+```
+
+En el dashboard: **Project Settings → API Keys**. Copia **Secret key** (`sb_secret_...`) o, en **Legacy API Keys**, **`service_role`**. Esa clave no debe ir a Vercel ni usarse en el navegador.
+
+Luego, en la raíz del proyecto:
+
+```bash
+npm run user:admin --  admin@tudominio.com "TuContraseña"
+npm run user:piso-1 -- piso1@tudominio.com "TuContraseña"
+npm run user:piso-2 -- piso2@tudominio.com "TuContraseña"
+```
+
+Nombre visible opcional al final:
+
+```bash
+npm run user:piso-1 -- piso1@tudominio.com "TuContraseña" "Ana"
+```
+
+Si el correo ya existe, el comando actualiza contraseña, rol y piso en lugar de fallar.
+
+El Piso 3 no envía lecturas en esta versión; no necesita cuenta.
+
+### 5. Autenticación
+
+En **Authentication → Providers** deja habilitado Email.
+
+En **Authentication → Settings** (o Providers → Email) puedes desactivar **Confirm email**. Los comandos `npm run user:*` ya marcan el correo como confirmado, así que deberían poder entrar aunque esa opción siga activa.
+
+## Desarrollo local
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Administración: `/admin`
+- Usuarios de piso: `/mis-lecturas`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tests
 
-## Learn More
+```bash
+npm test
+```
 
-To learn more about Next.js, take a look at the following resources:
+Cubren diferencia de lecturas, Piso 3 por diferencia, consumo negativo, lectura menor que la anterior, estados, permisos de dominio y lógica de períodos.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Las políticas RLS se verifican en Supabase (SQL Editor o Table Editor iniciando sesión con cada usuario). No hace falta Docker.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Comprobación manual recomendada de RLS:
 
-## Deploy on Vercel
+1. Entra como usuario del Piso 1 e intenta leer una fila de `meter_readings` del Piso 2: debe fallar.
+2. Intenta aprobar una lectura desde el cliente del piso: la política solo permite dejar el estado en `pending`.
+3. Las fotos viven en rutas `{floor_id}/...`; un usuario de otro piso no obtiene URL firmada.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Build
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run build
+npm start
+```
+
+El build de producción necesita las mismas variables de entorno.
+
+## Despliegue en Vercel
+
+1. Sube el repositorio a GitHub/GitLab/Bitbucket.
+2. En [Vercel](https://vercel.com) importa el proyecto (framework: Next.js).
+3. Configura:
+
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+4. Deploy.
+
+No hace falta servicio role key en Vercel: la autorización está en RLS. No publiques los buckets.
+
+En Authentication → URL configuration de Supabase, añade:
+
+- `http://localhost:3000`
+- `https://tu-dominio.vercel.app`
+
+## Primer uso (lectura inicial)
+
+El consumo necesita una lectura **aprobada anterior**. La primera vez que uses el sistema:
+
+1. Crea un período de referencia (por ejemplo `Lectura inicial`) con las fechas del período previo.
+2. Como administrador, registra y aprueba las 4 lecturas (Piso 1/2 × agua/energía) con foto del contador o de la planilla anterior.
+3. No es obligatorio marcar ese período como listo.
+4. Crea el período de facturación real, carga el PDF y pide las lecturas nuevas.
+
+Sin ese paso, el sistema avisa que falta lectura anterior y no deja marcar el período como liquidable.
+
+## Funcionamiento mensual
+
+1. El administrador crea el período (`open`).
+2. Sube el PDF y los totales de energía, agua y alcantarillado.
+3. Los usuarios de Piso 1 y 2 envían lectura + foto.
+4. El administrador compara foto y valor. Puede corregir (queda `submitted_value` original, `value` vigente y una fila de auditoría), aprobar o rechazar con motivo.
+5. Cuando las 4 lecturas están aprobadas, hay lectura anterior, los consumos del Piso 3 no son negativos y el recibo está completo, el administrador marca el período **listo**.
+6. El botón **Preparar liquidación** aparece, pero las fórmulas aún no están definidas.
+
+Avisos visibles (no se ocultan):
+
+- Lectura actual menor que la anterior (se puede aprobar solo confirmando el aviso).
+- Falta de lectura anterior.
+- Total de alcantarillado del recibo distinto al de agua (el consumo por piso sigue copiándose del agua).
+- Consumo del Piso 3 negativo (bloquea el estado `ready`).
+
+## Variables de entorno
+
+| Variable | Dónde | Uso |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | `.env.local` y Vercel | URL del proyecto |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `.env.local` y Vercel | Clave anónima o publishable (con RLS) |
+| `SUPABASE_SERVICE_ROLE_KEY` | solo `.env.local` | Clave secret / service_role para `npm run user:*`. No la subas a Vercel. |
+| `SUPABASE_DB_PASSWORD` | solo `.env.local` | Contraseña de Postgres para `npm run db:schema`. |
+| `DATABASE_URL` | solo `.env.local`, opcional | URI completa si la conexión directa falla. Tiene prioridad sobre `SUPABASE_DB_PASSWORD`. |
+
+No subas `.env.local` al repositorio.
+
+## Estructura del código
+
+```text
+app/                 páginas y server actions
+components/          UI pequeña
+lib/domain/          reglas de negocio (testeable, sin React)
+lib/billing/         extractor de recibo
+lib/data/            lecturas a Supabase
+lib/supabase/        clientes Auth/DB
+lib/storage/         rutas de archivos privados
+supabase/migrations  SQL para pegar en el dashboard
+tests/               Vitest
+```
+
+## Lo que no está en esta versión (a propósito)
+
+- Fórmulas de cuánto paga cada persona
+- Extracción automática del PDF
+- OCR o visión sobre las fotografías
+- Panel de alta de usuarios
+- Montos en dinero del recibo
+- Gráficos
+
+Cuando se especifiquen las reglas de Excel, el punto de entrada es `lib/domain/settlement.ts`.
