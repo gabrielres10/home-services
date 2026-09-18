@@ -13,10 +13,16 @@ export function PageMain({
   variant = "wide",
 }: {
   children: React.ReactNode;
-  variant?: "wide" | "narrow" | "form";
+  variant?: "wide" | "narrow" | "form" | "guided";
 }) {
   const width =
-    variant === "narrow" ? "page-main-narrow" : variant === "form" ? "page-main-form" : "";
+    variant === "narrow"
+      ? "page-main-narrow"
+      : variant === "form"
+        ? "page-main-form"
+        : variant === "guided"
+          ? "page-main-guided"
+          : "";
   return <main className={`page-main ${width}`.trim()}>{children}</main>;
 }
 

@@ -29,21 +29,20 @@ export function PeriodGuide({
   steps: GuideStep[];
 }) {
   return (
-    <div className="guide-layout">
-      <aside className="now-card">
+    <nav className="period-guide-rail" aria-label="Guía de pasos del período">
+      <div className="period-guide-now">
         <p className="kicker">Qué hacer ahora</p>
-        <h2>{nextTitle}</h2>
-        <p>{nextDetail}</p>
-        <a href={nextHref} className="btn btn-primary">
-          {nextLabel}
-        </a>
-      </aside>
+        <p className="period-guide-now-title">{nextTitle}</p>
+        <p className="period-guide-now-detail">{nextDetail}</p>
+      </div>
       <ol className="guide-steps">
         {steps.map((step) => (
           <li key={step.href} className={`guide-step is-${step.state}`}>
-            <a href={step.href}>
-              <span className="guide-n">{step.n}</span>
-              <span>
+            <a href={step.href} aria-label={`Paso ${step.n}: ${step.title}. ${stateLabel[step.state]}`}>
+              <span className="guide-n" aria-hidden>
+                {step.n}
+              </span>
+              <span className="guide-copy">
                 <strong>{step.title}</strong>
                 <span className="guide-detail">{step.detail}</span>
               </span>
@@ -52,25 +51,9 @@ export function PeriodGuide({
           </li>
         ))}
       </ol>
-    </div>
-  );
-}
-
-export function JumpNav({
-  items,
-}: {
-  items: Array<{ href: string; label: string }>;
-}) {
-  return (
-    <nav aria-label="Partes de esta página">
-      <p className="kicker section-kicker">Ir a una parte</p>
-      <ul className="jump-nav">
-        {items.map((item) => (
-          <li key={item.href}>
-            <a href={item.href}>{item.label}</a>
-          </li>
-        ))}
-      </ul>
+      <a href={nextHref} className="btn btn-primary btn-full period-guide-cta">
+        {nextLabel}
+      </a>
     </nav>
   );
 }

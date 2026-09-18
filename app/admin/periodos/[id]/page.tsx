@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth/current-user";
 import { AppHeader } from "@/components/app-header";
 import { BillForm } from "@/components/bill-form";
 import { IssueList } from "@/components/issue-list";
-import { JumpNav, PeriodGuide, type GuideStep } from "@/components/period-guide";
+import { PeriodGuide, type GuideStep } from "@/components/period-guide";
 import { PeriodActions } from "@/components/period-actions";
 import { PeriodStatusBadge, ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import { ReadingReviewCard } from "@/components/reading-review-card";
@@ -78,8 +78,9 @@ export default async function PeriodDetailPage({
         title={period.label}
         crumbs={[{ href: "/admin", label: "Períodos" }]}
       />
-      <PageMain>
-        <div className="stack-xl">
+      <PageMain variant="guided">
+        <div className="period-with-guide">
+          <div className="period-flow stack-xl">
           <section className="period-hero">
             <div className="period-hero-copy">
               <PeriodStatusBadge status={period.status} label={statusLabel} />
@@ -88,21 +89,7 @@ export default async function PeriodDetailPage({
                 {formatDate(period.starts_on)} — {formatDate(period.ends_on)}
               </p>
             </div>
-            <JumpNav
-              items={[
-                { href: "#recibo", label: "Recibo" },
-                ...catalog.floors.map((floor) => ({
-                  href: `#${floorAnchor(floor.code, floor.sortOrder)}`,
-                  label: floor.name,
-                })),
-                { href: "#consumos", label: "Consumos" },
-                { href: "#liquidacion", label: "Liquidación" },
-                { href: "#cierre", label: "Cerrar" },
-              ]}
-            />
           </section>
-
-          <PeriodGuide {...guide} />
 
           {isOpeningPeriod ? (
             <p className="notice notice-warning max-w-[46rem]">
@@ -358,6 +345,8 @@ export default async function PeriodDetailPage({
               }
             />
           </WorkPanel>
+          </div>
+          <PeriodGuide {...guide} />
         </div>
       </PageMain>
     </>

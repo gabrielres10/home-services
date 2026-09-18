@@ -132,6 +132,10 @@ a {
   width: min(100% - 2rem, 36rem);
 }
 
+.page-main-guided {
+  width: min(100% - 2rem, 90rem);
+}
+
 .stack-xl > * + * {
   margin-top: 3.25rem;
 }
@@ -1112,9 +1116,121 @@ details[open] > .archive-toggle::before {
   margin-top: 1.15rem;
 }
 
-.guide-layout {
+.period-with-guide {
+  display: block;
+}
+
+.period-flow {
+  padding-bottom: 6.75rem;
+}
+
+.period-guide-rail {
+  position: fixed;
+  z-index: 24;
+  right: 0.75rem;
+  left: 0.75rem;
+  bottom: max(0.65rem, env(safe-area-inset-bottom, 0px));
   display: grid;
-  gap: 1.25rem;
+  gap: 0.4rem;
+  padding: 0.65rem 0.8rem 0.7rem;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  box-shadow: 0 -10px 28px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+
+.period-guide-now-title {
+  margin: 0.15rem 0 0;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.period-guide-now-detail,
+.period-guide-cta,
+.guide-copy,
+.guide-state {
+  display: none;
+}
+
+.guide-steps {
+  display: flex;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 0;
+}
+
+.guide-step {
+  flex: 1;
+  min-width: 0;
+}
+
+.guide-step a {
+  display: grid;
+  justify-items: center;
+  padding: 0.4rem 0.15rem;
+  border-bottom: 0;
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+
+.guide-step a:hover .guide-n,
+.guide-step a:hover strong {
+  color: var(--copper);
+}
+
+.guide-n {
+  color: var(--mute);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.guide-step strong {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 650;
+}
+
+.guide-step .guide-detail {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--mute);
+  font-size: 0.78rem;
+}
+
+.guide-state {
+  color: var(--mute);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.guide-step.is-done .guide-n,
+.guide-step.is-done .guide-state {
+  color: var(--ok);
+}
+
+.guide-step.is-current a {
+  background: color-mix(in srgb, var(--copper) 12%, var(--paper));
+}
+
+.guide-step.is-current .guide-n,
+.guide-step.is-current .guide-state,
+.guide-step.is-current strong {
+  color: var(--copper);
+}
+
+.guide-step.is-optional .guide-state {
+  color: var(--info);
 }
 
 .now-card {
@@ -1140,82 +1256,6 @@ details[open] > .archive-toggle::before {
 
 .now-card .btn {
   margin-top: 0.95rem;
-}
-
-.guide-steps {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--line);
-}
-
-.guide-step a {
-  display: grid;
-  grid-template-columns: 1.8rem 1fr auto;
-  gap: 0.7rem 0.85rem;
-  align-items: start;
-  padding: 0.75rem 0.15rem;
-  border-bottom: 1px solid var(--line);
-  text-decoration: none;
-}
-
-.guide-step a:hover strong {
-  color: var(--copper);
-}
-
-.guide-n {
-  color: var(--mute);
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-}
-
-.guide-step strong {
-  display: block;
-  font-size: 0.98rem;
-  font-weight: 650;
-}
-
-.guide-step .guide-detail {
-  display: block;
-  margin-top: 0.15rem;
-  color: var(--mute);
-  font-size: 0.84rem;
-}
-
-.guide-state {
-  color: var(--mute);
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.guide-step.is-done .guide-n,
-.guide-step.is-done .guide-state {
-  color: var(--ok);
-}
-
-.guide-step.is-current {
-  background: color-mix(in srgb, var(--raised) 80%, transparent);
-  box-shadow: inset 2px 0 0 var(--copper);
-}
-
-.guide-step.is-current a {
-  padding-left: 0.75rem;
-}
-
-.guide-step.is-current .guide-n,
-.guide-step.is-current .guide-state,
-.guide-step.is-current strong {
-  color: var(--copper);
-}
-
-.guide-step.is-optional .guide-state {
-  color: var(--info);
 }
 
 .jump-nav {
@@ -1447,14 +1487,7 @@ details[open] > .archive-toggle::before {
   }
 
   .period-hero {
-    grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
-    align-items: end;
-  }
-
-  .guide-layout {
-    grid-template-columns: minmax(17rem, 0.92fr) minmax(0, 1.2fr);
-    align-items: start;
-    gap: 2rem 2.5rem;
+    display: block;
   }
 
   .status-list {
@@ -1508,6 +1541,10 @@ details[open] > .archive-toggle::before {
     width: min(100% - 3rem, 76rem);
   }
 
+  .page-main-guided {
+    width: min(100% - 3rem, 76rem);
+  }
+
   .floor-statements {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0 1.75rem;
@@ -1522,6 +1559,103 @@ details[open] > .archive-toggle::before {
 
   .floor-statement:last-child {
     padding-right: 1.1rem;
+  }
+}
+
+@media (min-width: 1100px) {
+  .page-main-guided {
+    width: min(100% - 3rem, 92rem);
+  }
+
+  .period-with-guide {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 16.85rem;
+    gap: 0 1.65rem;
+    align-items: start;
+  }
+
+  .period-flow {
+    min-width: 0;
+    padding-bottom: 0;
+  }
+
+  .period-guide-rail {
+    position: sticky;
+    top: calc(var(--header-h) + 0.9rem);
+    right: auto;
+    left: auto;
+    bottom: auto;
+    max-height: calc(100dvh - var(--header-h) - 1.8rem);
+    overflow: auto;
+    padding: 1rem 0.95rem 1.1rem;
+    border-left: 3px solid var(--copper);
+    box-shadow: none;
+  }
+
+  .period-guide-now-title {
+    font-size: 1.18rem;
+    white-space: normal;
+  }
+
+  .period-guide-now-detail {
+    display: block;
+    margin: 0.35rem 0 0;
+    color: var(--mute);
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+
+  .period-guide-cta {
+    display: inline-flex;
+    width: 100%;
+    margin-top: 0.15rem;
+  }
+
+  .guide-copy,
+  .guide-state {
+    display: block;
+  }
+
+  .guide-steps {
+    display: grid;
+    gap: 0;
+    margin-top: 0.2rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .guide-step {
+    flex: none;
+  }
+
+  .guide-step a {
+    display: grid;
+    grid-template-columns: 1.35rem minmax(0, 1fr);
+    grid-template-areas:
+      "n copy"
+      "n state";
+    justify-items: start;
+    gap: 0.08rem 0.65rem;
+    padding: 0.7rem 0.2rem 0.7rem 0.45rem;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+  }
+
+  .guide-n {
+    grid-area: n;
+  }
+
+  .guide-copy {
+    grid-area: copy;
+    min-width: 0;
+  }
+
+  .guide-state {
+    grid-area: state;
+  }
+
+  .guide-step.is-current a {
+    background: transparent;
+    box-shadow: inset 2px 0 0 var(--copper);
   }
 }
 
