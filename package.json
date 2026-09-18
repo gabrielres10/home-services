@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:schema": "node scripts/apply-schema.mjs",
+    "db:reset": "node scripts/reset-db.mjs",
     "user:admin": "node scripts/create-user.mjs admin",
     "user:piso-1": "node scripts/create-user.mjs piso-1",
     "user:piso-2": "node scripts/create-user.mjs piso-2"

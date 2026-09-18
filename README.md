@@ -142,7 +142,27 @@ Eso ejecuta `supabase/migrations/001_schema.sql`: tablas, RLS, auditoría, semil
 
 Si `db.<proyecto>.supabase.co` no conecta (IPv6 / red), copia en `.env.local` la URI de **Project Settings → Database → Connect → Session pooler** como `DATABASE_URL` y vuelve a correr el comando. `DATABASE_URL` tiene prioridad sobre `SUPABASE_DB_PASSWORD`.
 
-También puedes pegar el SQL a mano en **SQL Editor**. Si alguna política de Storage ya existía, el script usa `drop policy if exists` y suele ser seguro repetirlo.
+También puedes pegar el SQL a mano en **SQL Editor**. Si alguna política de Storage dice que ya existe, el script usa `drop policy if exists` y suele ser seguro repetirlo.
+
+### Reiniciar datos de prueba
+
+Cuando un ensayo deje la base sucia:
+
+```bash
+npm run db:reset -- --yes
+```
+
+Eso borra períodos, recibos, lecturas, fotos, auditoría y **usuarios de Auth**. Vuelve a dejar los 3 pisos, 3 servicios y 4 contadores. No toca tablas, RLS ni `.env.local`.
+
+Sin `--yes` no ejecuta nada; solo muestra la ayuda.
+
+Después recrea las cuentas:
+
+```bash
+npm run user:admin --  admin@tudominio.com "TuContraseña"
+npm run user:piso-1 -- piso1@tudominio.com "TuContraseña"
+npm run user:piso-2 -- piso2@tudominio.com "TuContraseña"
+```
 
 ### 4. Crear usuarios (admin, Piso 1 y Piso 2)
 
