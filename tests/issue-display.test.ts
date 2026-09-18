@@ -39,7 +39,7 @@ describe("groupIssuesForDisplay", () => {
     expect(notices[0]?.title).toMatch(/recibo aún no está completo/i);
     expect(notices[0]?.items).toEqual([
       "PDF del recibo",
-      "Consumos totales (energía, agua y alcantarillado)",
+      "Consumos totales (agua, alcantarillado y energía)",
       "2 importes en pesos",
       "Subtotal de otros servicios + AP",
     ]);

@@ -29,11 +29,11 @@ values
 
 insert into public.services (code, name, unit, consumption_source, copied_from_service_id, sort_order)
 values
-  ('energia', 'Energía', 'kWh', 'metered', null, 1),
-  ('agua', 'Agua', 'm³', 'metered', null, 2);
+  ('agua', 'Agua', 'm³', 'metered', null, 1),
+  ('energia', 'Energía', 'kWh', 'metered', null, 3);
 
 insert into public.services (code, name, unit, consumption_source, copied_from_service_id, sort_order)
-select 'alcantarillado', 'Alcantarillado', 'm³', 'copied', id, 3
+select 'alcantarillado', 'Alcantarillado', 'm³', 'copied', id, 2
 from public.services
 where code = 'agua';
 

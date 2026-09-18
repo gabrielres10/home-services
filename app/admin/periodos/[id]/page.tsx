@@ -192,14 +192,14 @@ export default async function PeriodDetailPage({
                             );
                           })
                         )}
-                        {energyLine?.consumption != null ? (
-                          <li className="muted">
-                            Energía <Amount value={energyLine.consumption} />
-                          </li>
-                        ) : null}
                         {waterLine?.consumption != null ? (
                           <li className="muted">
                             Agua <Amount value={waterLine.consumption} />
+                          </li>
+                        ) : null}
+                        {energyLine?.consumption != null ? (
+                          <li className="muted">
+                            Energía <Amount value={energyLine.consumption} />
                           </li>
                         ) : null}
                       </ul>

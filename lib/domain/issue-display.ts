@@ -58,9 +58,9 @@ function summarizeBillIncomplete(issues: ValidationIssue[]): IssueNotice {
   }
 
   const totals = [
-    has("bill.energy_missing") ? "energía" : null,
     has("bill.water_missing") ? "agua" : null,
     has("bill.sewer_missing") ? "alcantarillado" : null,
+    has("bill.energy_missing") ? "energía" : null,
   ].filter((item): item is string => Boolean(item));
   if (totals.length > 0) {
     items.push(`Consumos totales (${joinSpanish(totals)})`);

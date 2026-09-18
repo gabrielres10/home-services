@@ -75,18 +75,6 @@ export function SettlementPanel({
             <dl>
               <div>
                 <dt>
-                  Energía · <Amount value={floor.energyKwh} /> kWh
-                </dt>
-                <dd>
-                  <Amount value={floor.energyCost} kind="money" />
-                </dd>
-                <span className="split">
-                  <Amount value={floor.energySubsidizedKwh} /> kWh subsidio ·{" "}
-                  <Amount value={floor.energyStandardKwh} /> kWh estándar
-                </span>
-              </div>
-              <div>
-                <dt>
                   Agua · <Amount value={floor.waterM3} /> m³
                 </dt>
                 <dd>
@@ -95,6 +83,18 @@ export function SettlementPanel({
                 <span className="split">
                   <Amount value={floor.waterSubsidizedM3} /> m³ subsidio ·{" "}
                   <Amount value={floor.waterStandardM3} /> m³ estándar
+                </span>
+              </div>
+              <div>
+                <dt>
+                  Energía · <Amount value={floor.energyKwh} /> kWh
+                </dt>
+                <dd>
+                  <Amount value={floor.energyCost} kind="money" />
+                </dd>
+                <span className="split">
+                  <Amount value={floor.energySubsidizedKwh} /> kWh subsidio ·{" "}
+                  <Amount value={floor.energyStandardKwh} /> kWh estándar
                 </span>
               </div>
               <div>
@@ -116,26 +116,6 @@ export function SettlementPanel({
               <caption>Seis cifras y alumbrado público</caption>
               <tbody>
                 <RateRow
-                  label="Precio energía subsidiada"
-                  value={
-                    <>
-                      <Amount value={rates.energySubsidizedUnitPrice} kind="money" /> / kWh
-                    </>
-                  }
-                />
-                <RateRow
-                  label="Precio energía estándar"
-                  value={
-                    <>
-                      <Amount value={rates.energyStandardUnitPrice} kind="money" /> / kWh
-                    </>
-                  }
-                />
-                <RateRow
-                  label="Otros de energía (por piso)"
-                  value={<Amount value={rates.energyOthersPerFloor[0] ?? 0} kind="money" />}
-                />
-                <RateRow
                   label="Precio acueducto y alcantarillado subsidiado"
                   value={
                     <>
@@ -156,6 +136,26 @@ export function SettlementPanel({
                   value={<Amount value={rates.waterOthersPerFloor[0] ?? 0} kind="money" />}
                 />
                 <RateRow
+                  label="Precio energía subsidiada"
+                  value={
+                    <>
+                      <Amount value={rates.energySubsidizedUnitPrice} kind="money" /> / kWh
+                    </>
+                  }
+                />
+                <RateRow
+                  label="Precio energía estándar"
+                  value={
+                    <>
+                      <Amount value={rates.energyStandardUnitPrice} kind="money" /> / kWh
+                    </>
+                  }
+                />
+                <RateRow
+                  label="Otros de energía (por piso)"
+                  value={<Amount value={rates.energyOthersPerFloor[0] ?? 0} kind="money" />}
+                />
+                <RateRow
                   label="Otros servicios + AP (por piso)"
                   value={<Amount value={rates.otherServicesApPerFloor[0] ?? 0} kind="money" />}
                 />
@@ -173,21 +173,21 @@ export function SettlementPanel({
               </thead>
               <tbody>
                 <tr>
-                  <td>Energía</td>
-                  <td>
-                    <Amount value={totals.energy} kind="money" />
-                  </td>
-                  <td>
-                    <Amount value={totals.billEnergy} kind="money" />
-                  </td>
-                </tr>
-                <tr>
                   <td>Acueducto y alcantarillado</td>
                   <td>
                     <Amount value={totals.waterAndSewer} kind="money" />
                   </td>
                   <td>
                     <Amount value={totals.billWaterAndSewer} kind="money" />
+                  </td>
+                </tr>
+                <tr>
+                  <td>Energía</td>
+                  <td>
+                    <Amount value={totals.energy} kind="money" />
+                  </td>
+                  <td>
+                    <Amount value={totals.billEnergy} kind="money" />
                   </td>
                 </tr>
                 <tr>

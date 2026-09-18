@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { findPreviousApprovedValue } from "@/lib/domain/consumption";
 import type { CatalogFloor, CatalogService } from "@/lib/domain/period-consumption";
+import { serviceDisplayIndex } from "@/lib/domain/types";
 
 export async function loadCatalog() {
   const supabase = await createServerSupabaseClient();
@@ -35,14 +36,32 @@ export async function loadCatalog() {
     consumptionSource: service.consumption_source,
     copiedFromServiceId: service.copied_from_service_id,
   }));
+  catalogServices.sort(
+    (left, right) => serviceDisplayIndex(left.code) - serviceDisplayIndex(right.code),
+  );
+
+  const floorOrder = new Map(catalogFloors.map((floor) => [floor.id, floor.sortOrder]));
+  const serviceCodeById = new Map(catalogServices.map((service) => [service.id, service.code]));
+  const catalogMeters = [...(meters ?? [])]
+    .map((meter) => ({
+      floorId: meter.floor_id,
+      serviceId: meter.service_id,
+    }))
+    .sort((left, right) => {
+      const floorDiff = (floorOrder.get(left.floorId) ?? 0) - (floorOrder.get(right.floorId) ?? 0);
+      if (floorDiff !== 0) {
+        return floorDiff;
+      }
+      return (
+        serviceDisplayIndex(serviceCodeById.get(left.serviceId) ?? "") -
+        serviceDisplayIndex(serviceCodeById.get(right.serviceId) ?? "")
+      );
+    });
 
   return {
     floors: catalogFloors,
     services: catalogServices,
-    meters: (meters ?? []).map((meter) => ({
-      floorId: meter.floor_id,
-      serviceId: meter.service_id,
-    })),
+    meters: catalogMeters,
   };
 }
 

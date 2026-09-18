@@ -4,6 +4,7 @@ import {
   emptyBillChargeValues,
   fillBillChargeValues,
 } from "@/lib/domain/bill-charges";
+import { SERVICE_CODES } from "@/lib/domain/types";
 import {
   parseMoneyAmount,
   validateBill,
@@ -24,6 +25,10 @@ function filledCharges(amount: number) {
 }
 
 describe("catálogo de importes del recibo", () => {
+  it("muestra agua, alcantarillado y energía en ese orden", () => {
+    expect([...SERVICE_CODES]).toEqual(["agua", "alcantarillado", "energia"]);
+  });
+
   it("pide los renglones de energía, agua y alcantarillado", () => {
     expect(BILL_CHARGE_CATALOG.energia.map((field) => field.label)).toEqual([
       "Consumo básico hasta 173 kWh",

@@ -225,9 +225,9 @@ export function validateBillTotals(input: {
 }
 
 const SERVICE_ISSUE_NAMES: Record<ServiceCode, string> = {
-  energia: "Energía",
   agua: "Agua",
   alcantarillado: "Alcantarillado",
+  energia: "Energía",
 };
 
 export function validateBillCharges(charges: BillChargeValueMap): ValidationIssue[] {

@@ -7,13 +7,6 @@ export type BillChargeField = {
 };
 
 export const BILL_CHARGE_CATALOG: Record<ServiceCode, readonly BillChargeField[]> = {
-  energia: [
-    { code: "consumo_basico_hasta_173", label: "Consumo básico hasta 173 kWh" },
-    { code: "consumo_mayor_al_basico", label: "Consumo mayor al básico" },
-    { code: "interes_mora", label: "Interés de mora" },
-    { code: "otros_cobros", label: "Otros cobros" },
-    { code: "ajuste_al_peso", label: "Ajuste al peso" },
-  ],
   agua: [
     { code: "cargo_basico", label: "Cargo básico" },
     { code: "consumo_basico_hasta_16", label: "Consumo básico hasta 16" },
@@ -27,6 +20,13 @@ export const BILL_CHARGE_CATALOG: Record<ServiceCode, readonly BillChargeField[]
     { code: "consumo_basico_hasta_16", label: "Consumo básico hasta 16" },
     { code: "consumo_mayor_al_basico", label: "Consumo mayor al básico 16" },
     { code: "interes_mora", label: "Interés de mora" },
+    { code: "ajuste_al_peso", label: "Ajuste al peso" },
+  ],
+  energia: [
+    { code: "consumo_basico_hasta_173", label: "Consumo básico hasta 173 kWh" },
+    { code: "consumo_mayor_al_basico", label: "Consumo mayor al básico" },
+    { code: "interes_mora", label: "Interés de mora" },
+    { code: "otros_cobros", label: "Otros cobros" },
     { code: "ajuste_al_peso", label: "Ajuste al peso" },
   ],
 };
@@ -50,12 +50,12 @@ export function billChargeFields(serviceCode: string): readonly BillChargeField[
 
 export function emptyBillChargeValues(): BillChargeValueMap {
   return {
-    energia: Object.fromEntries(
-      BILL_CHARGE_CATALOG.energia.map((field) => [field.code, null]),
-    ),
     agua: Object.fromEntries(BILL_CHARGE_CATALOG.agua.map((field) => [field.code, null])),
     alcantarillado: Object.fromEntries(
       BILL_CHARGE_CATALOG.alcantarillado.map((field) => [field.code, null]),
+    ),
+    energia: Object.fromEntries(
+      BILL_CHARGE_CATALOG.energia.map((field) => [field.code, null]),
     ),
   };
 }
