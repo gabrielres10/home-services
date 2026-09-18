@@ -30,7 +30,11 @@ export default async function AdminHomePage() {
             </Link>
           </p>
         ) : (
-          <p className="text-sm text-stone-600">Todavía no hay períodos.</p>
+          <p className="text-sm text-stone-600">
+            Todavía no hay períodos. Crea primero el período más antiguo: sus lecturas
+            aprobadas serán la referencia inicial. El consumo se calcula desde el
+            siguiente período.
+          </p>
         )}
         <ul className="space-y-3">
           {periods.map((period) => (

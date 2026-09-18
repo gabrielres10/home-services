@@ -67,22 +67,28 @@ export async function loadPreviousApprovedValue(input: {
   const periodIds = [...new Set(readings.map((row) => row.period_id))];
   const { data: periods, error: periodsError } = await supabase
     .from("billing_periods")
-    .select("id, ends_on")
+    .select("id, starts_on, ends_on")
     .in("id", periodIds);
 
   if (periodsError) {
     throw new Error(periodsError.message);
   }
 
-  const endsById = new Map((periods ?? []).map((period) => [period.id, period.ends_on]));
+  const datesById = new Map(
+    (periods ?? []).map((period) => [
+      period.id,
+      { startsOn: period.starts_on, endsOn: period.ends_on },
+    ]),
+  );
   const history = readings.flatMap((row) => {
-    const endsOn = endsById.get(row.period_id);
-    if (!endsOn) {
+    const dates = datesById.get(row.period_id);
+    if (!dates) {
       return [];
     }
     return [
       {
-        periodEndsOn: endsOn,
+        periodStartsOn: dates.startsOn,
+        periodEndsOn: dates.endsOn,
         status: row.status,
         value: Number(row.value),
       },
@@ -115,7 +121,7 @@ export async function hasAnyEarlierPeriod(startsOn: string): Promise<boolean> {
   const { count, error } = await supabase
     .from("billing_periods")
     .select("id", { count: "exact", head: true })
-    .lt("ends_on", startsOn);
+    .lt("starts_on", startsOn);
 
   if (error) {
     throw new Error(error.message);

@@ -45,3 +45,23 @@ export function toNumber(value: string | number | null | undefined): number | nu
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
+
+export function previousReadingDisplay(
+  value: number | null,
+  isOpeningPeriod: boolean,
+): string {
+  if (value !== null) {
+    return formatNumber(value);
+  }
+  return isOpeningPeriod ? "Lectura inicial" : "No hay lectura aprobada previa";
+}
+
+export function consumptionDisplay(
+  value: number | null,
+  isOpeningPeriod: boolean,
+): string {
+  if (value !== null) {
+    return formatNumber(value);
+  }
+  return isOpeningPeriod ? "No aplica (período inicial)" : "No calculable todavía";
+}

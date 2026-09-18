@@ -84,6 +84,28 @@ describe("buildPeriodConsumptions", () => {
     expect(result.allMeteredCalculable).toBe(true);
   });
 
+  it("en el período inicial no exige un período aún más antiguo", () => {
+    const result = buildPeriodConsumptions({
+      floors,
+      services,
+      meters,
+      totals: [],
+      currentReadings: [
+        { floorId: "f1", serviceId: "agua", value: 1284, status: "approved" },
+        { floorId: "f2", serviceId: "agua", value: 934, status: "approved" },
+      ],
+      previousBySlot: [],
+      isOpeningPeriod: true,
+    });
+
+    const agua1 = result.lines.find((line) => line.floorId === "f1" && line.serviceId === "agua");
+    expect(agua1?.calculable).toBe(false);
+    expect(agua1?.issues.some((issue) => issue.code === "reading.opening")).toBe(true);
+    expect(agua1?.issues.some((issue) => issue.code === "reading.missing_previous")).toBe(
+      false,
+    );
+  });
+
   it("marca error si el piso 3 queda negativo", () => {
     const result = buildPeriodConsumptions({
       floors,

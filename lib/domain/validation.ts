@@ -58,6 +58,25 @@ export function currentLessThanPreviousIssue(
   return null;
 }
 
+export function previousReadingIssue(
+  hasEarlierPeriod: boolean,
+  context?: { floorName: string; serviceName: string },
+): ValidationIssue {
+  const prefix = context ? `${context.floorName} / ${context.serviceName}: ` : "";
+  if (!hasEarlierPeriod) {
+    return {
+      code: "reading.opening",
+      severity: "warning",
+      message: `${prefix}Lectura inicial. El consumo se calculará en el siguiente período.`,
+    };
+  }
+  return {
+    code: "reading.missing_previous",
+    severity: "warning",
+    message: `${prefix}No hay una lectura anterior aprobada. El consumo no se puede calcular todavía.`,
+  };
+}
+
 export type ReadingDraftInput = {
   rawValue: string;
   hasPhoto: boolean;
@@ -128,13 +147,8 @@ export function validateReadingDraft(input: ReadingDraftInput): ValidationIssue[
     });
   }
 
-  if (input.previousApproved === null && input.hasEarlierPeriod) {
-    issues.push({
-      code: "reading.missing_previous",
-      severity: "warning",
-      message:
-        "No hay una lectura anterior aprobada. El consumo no se puede calcular todavía.",
-    });
+  if (input.previousApproved === null) {
+    issues.push(previousReadingIssue(input.hasEarlierPeriod));
   }
 
   return issues;

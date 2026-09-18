@@ -43,6 +43,12 @@ export function PeriodForm() {
           {label ?? "Se genera con las fechas inicial y final."}
         </span>
       </p>
+      <p className="text-sm text-stone-600">
+        El período con la fecha inicial más antigua guarda las lecturas de referencia.
+        El consumo se calcula a partir del siguiente. Si el día de lectura coincide
+        (por ejemplo, un período termina el 11 feb y el siguiente empieza el 11 feb),
+        el anterior es el que empieza antes.
+      </p>
       <button
         type="submit"
         className="rounded bg-stone-900 px-4 py-2 text-white hover:bg-stone-800"

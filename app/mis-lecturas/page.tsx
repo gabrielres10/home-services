@@ -8,8 +8,8 @@ import { loadCatalog, loadPreviousApprovedValue, hasAnyEarlierPeriod } from "@/l
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { signedUrl } from "@/lib/data/period-detail";
 import { PHOTOS_BUCKET } from "@/lib/storage/paths";
-import { currentLessThanPreviousIssue } from "@/lib/domain/validation";
-import { formatDate, formatNumber } from "@/lib/format";
+import { currentLessThanPreviousIssue, previousReadingIssue } from "@/lib/domain/validation";
+import { formatDate, formatNumber, previousReadingDisplay } from "@/lib/format";
 import { canSubmitInPeriod } from "@/lib/domain/period-status";
 
 export default async function MyReadingsPage() {
@@ -87,13 +87,8 @@ export default async function MyReadingsPage() {
             const warning = currentLessThanPreviousIssue(Number(reading.value), previous);
             if (warning) issues.push(warning);
           }
-          if (previous === null && earlier) {
-            issues.push({
-              code: "reading.missing_previous",
-              severity: "warning" as const,
-              message:
-                "No hay una lectura anterior aprobada. El consumo no se puede calcular todavía.",
-            });
+          if (previous === null) {
+            issues.push(previousReadingIssue(earlier));
           }
           if (reading?.status === "rejected" && reading.rejection_reason) {
             issues.push({
@@ -123,7 +118,7 @@ export default async function MyReadingsPage() {
               {reading ? (
                 <p className="text-sm">
                   Enviada: {formatNumber(Number(reading.value))} {service?.unit}. Anterior:{" "}
-                  {previous === null ? "no disponible" : formatNumber(previous)}
+                  {previousReadingDisplay(previous, !earlier)}
                 </p>
               ) : null}
               {editable && reading?.status !== "approved" ? (
@@ -140,6 +135,7 @@ export default async function MyReadingsPage() {
                   issues={issues}
                   disabled={!canSubmitInPeriod(period.status)}
                   photoRequired={!reading?.current_photo_id}
+                  isOpeningPeriod={!earlier}
                 />
               ) : (
                 <IssueList issues={issues} />
@@ -158,7 +154,9 @@ export default async function MyReadingsPage() {
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-6">
         <p className="text-sm text-stone-600">
           Piso: <strong>{user.floorName}</strong>. Introduce solo la lectura actual y la
-          fotografía. La lectura anterior se toma del último valor aprobado.
+          fotografía. La lectura anterior se toma del último valor aprobado de un período
+          que empiece antes. En el período más antiguo se registra la lectura inicial; el
+          consumo se calcula desde el siguiente.
         </p>
         {openPeriods.length === 0 ? (
           <p>No hay períodos abiertos que requieran lecturas.</p>

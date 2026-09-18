@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { submitReading } from "@/app/actions/readings";
 import { optimizeMeterPhoto } from "@/lib/images/optimize";
-import { formatNumber } from "@/lib/format";
+import { previousReadingDisplay } from "@/lib/format";
 import type { ValidationIssue } from "@/lib/domain/types";
 import { IssueList } from "@/components/issue-list";
 
@@ -21,6 +21,7 @@ export function ReadingForm({
   issues,
   disabled,
   photoRequired = true,
+  isOpeningPeriod = false,
 }: {
   periodId: string;
   floorId: string;
@@ -34,6 +35,7 @@ export function ReadingForm({
   issues: ValidationIssue[];
   disabled: boolean;
   photoRequired?: boolean;
+  isOpeningPeriod?: boolean;
 }) {
   const [pendingPhoto, setPendingPhoto] = useState(false);
 
@@ -65,7 +67,7 @@ export function ReadingForm({
       <p className="text-sm">
         Lectura anterior:{" "}
         <strong>
-          {previousValue === null ? "No hay lectura aprobada previa" : formatNumber(previousValue)}
+          {previousReadingDisplay(previousValue, isOpeningPeriod)}
         </strong>
       </p>
       <IssueList issues={issues} />

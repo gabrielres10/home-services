@@ -63,7 +63,8 @@ Hoy `ManualBillExtractor` usa los valores que escribe el administrador. Más ade
 - Piso 3 no tiene contador: su consumo es `total del recibo − Piso 1 − Piso 2`.
 - **Alcantarillado** no tiene contador. El consumo de cada piso es el mismo que el de agua.
 - Hay un PDF por período. Los totales se capturan a mano en esta versión.
-- Una lectura pendiente o rechazada **nunca** se usa como lectura anterior. Solo la última lectura **aprobada**.
+- Una lectura pendiente o rechazada **nunca** se usa como lectura anterior. Solo la última lectura **aprobada** de un período que **empiece antes**. Si dos períodos comparten el día de lectura (por ejemplo 11 feb), el anterior es el que empieza antes.
+- El período con la fecha inicial más antigua es el de **lectura inicial**: no calcula consumo ni exige recibo. El consumo empieza en el siguiente período.
 - Si el consumo del Piso 3 sale negativo, el período no se puede marcar como listo.
 
 ## Estructura de la base de datos
@@ -256,14 +257,14 @@ En Authentication → URL configuration de Supabase, añade:
 
 ## Primer uso (lectura inicial)
 
-El consumo necesita una lectura **aprobada anterior**. La primera vez que uses el sistema:
+El consumo necesita una lectura **aprobada anterior**. La primera vez:
 
-1. Crea un período de referencia (por ejemplo `Lectura inicial`) con las fechas del período previo.
+1. Crea el período más antiguo (el de la lectura de referencia).
 2. Como administrador, registra y aprueba las 4 lecturas (Piso 1/2 × agua/energía) con foto del contador o de la planilla anterior.
-3. No es obligatorio marcar ese período como listo.
-4. Crea el período de facturación real, carga el PDF y pide las lecturas nuevas.
+3. Ese período inicial **no pide un período aún más antiguo**. Con las lecturas aprobadas ya puedes marcarlo como listo, sin recibo.
+4. Crea el período de facturación siguiente (puede empezar el mismo día en que termina el anterior), carga el PDF y pide las lecturas nuevas. La lectura anterior se toma del período inicial.
 
-Sin ese paso, el sistema avisa que falta lectura anterior y no deja marcar el período como liquidable.
+No hace falta encadenar períodos hacia atrás de forma indefinida.
 
 ## Funcionamiento mensual
 
@@ -271,7 +272,7 @@ Sin ese paso, el sistema avisa que falta lectura anterior y no deja marcar el pe
 2. Sube el PDF y los totales de energía, agua y alcantarillado.
 3. Los usuarios de Piso 1 y 2 envían lectura + foto.
 4. El administrador compara foto y valor. Puede corregir (queda `submitted_value` original, `value` vigente y una fila de auditoría), aprobar o rechazar con motivo.
-5. Cuando las 4 lecturas están aprobadas, hay lectura anterior, los consumos del Piso 3 no son negativos y el recibo está completo, el administrador marca el período **listo**.
+5. Cuando las 4 lecturas están aprobadas, hay lectura anterior (salvo en el período inicial), los consumos del Piso 3 no son negativos y el recibo está completo, el administrador marca el período **listo**.
 6. El botón **Preparar liquidación** aparece, pero las fórmulas aún no están definidas.
 
 Avisos visibles (no se ocultan):

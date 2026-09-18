@@ -25,6 +25,7 @@ export type ValidationIssue = {
 };
 
 export type HistoricalReading = {
+  periodStartsOn: string;
   periodEndsOn: string;
   status: ReadingStatus;
   value: number;

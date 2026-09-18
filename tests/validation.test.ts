@@ -71,6 +71,22 @@ describe("validateReadingDraft", () => {
     expect(issues.some((issue) => issue.code === "reading.missing_previous")).toBe(true);
     expect(hasBlockingErrors(issues)).toBe(false);
   });
+
+  it("el período inicial avisa lectura inicial y no exige un período aún más antiguo", () => {
+    const issues = validateReadingDraft({
+      rawValue: "1284",
+      hasPhoto: true,
+      previousApproved: null,
+      hasEarlierPeriod: false,
+      periodStatus: "open",
+      hasMeter: true,
+      serviceAllowed: true,
+      alreadyHasApprovedReading: false,
+    });
+    expect(issues.some((issue) => issue.code === "reading.opening")).toBe(true);
+    expect(issues.some((issue) => issue.code === "reading.missing_previous")).toBe(false);
+    expect(hasBlockingErrors(issues)).toBe(false);
+  });
 });
 
 describe("validateBillTotals", () => {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { approveReading, rejectReading, submitReading } from "@/app/actions/readings";
 import { optimizeMeterPhoto } from "@/lib/images/optimize";
-import { formatNumber } from "@/lib/format";
+import { consumptionDisplay, formatNumber, previousReadingDisplay } from "@/lib/format";
 import { IssueList } from "@/components/issue-list";
 import { ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import type { ValidationIssue } from "@/lib/domain/types";
@@ -28,6 +28,7 @@ export function ReadingReviewCard({
   rejectionReason,
   issues,
   warningsNeedConfirm,
+  isOpeningPeriod = false,
 }: {
   periodId: string;
   floorId: string;
@@ -46,6 +47,7 @@ export function ReadingReviewCard({
   rejectionReason: string | null;
   issues: ValidationIssue[];
   warningsNeedConfirm: boolean;
+  isOpeningPeriod?: boolean;
 }) {
   const [pendingPhoto, setPendingPhoto] = useState(false);
 
@@ -80,7 +82,7 @@ export function ReadingReviewCard({
       <dl className="grid gap-1 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-stone-500">Lectura anterior</dt>
-          <dd>{previousValue === null ? "No hay lectura aprobada previa" : formatNumber(previousValue)}</dd>
+          <dd>{previousReadingDisplay(previousValue, isOpeningPeriod)}</dd>
         </div>
         <div>
           <dt className="text-stone-500">Lectura actual</dt>
@@ -92,7 +94,7 @@ export function ReadingReviewCard({
         </div>
         <div>
           <dt className="text-stone-500">Consumo</dt>
-          <dd>{consumption === null ? "No calculable todavía" : formatNumber(consumption)}</dd>
+          <dd>{consumptionDisplay(consumption, isOpeningPeriod)}</dd>
         </div>
       </dl>
       <IssueList issues={issues} />

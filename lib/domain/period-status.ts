@@ -43,6 +43,7 @@ export type ReadinessInput = {
   billComplete: boolean;
   allMeteredConsumptionsCalculable: boolean;
   hasNegativeUnmetered: boolean;
+  isOpeningPeriod?: boolean;
 };
 
 export type ReadinessResult = {
@@ -52,8 +53,9 @@ export type ReadinessResult = {
 
 export function evaluatePeriodReadiness(input: ReadinessInput): ReadinessResult {
   const blockers: ValidationIssue[] = [];
+  const isOpeningPeriod = Boolean(input.isOpeningPeriod);
 
-  if (!input.billComplete) {
+  if (!isOpeningPeriod && !input.billComplete) {
     blockers.push({
       code: "period.bill_incomplete",
       severity: "error",
@@ -69,7 +71,7 @@ export function evaluatePeriodReadiness(input: ReadinessInput): ReadinessResult 
     });
   }
 
-  if (!input.allMeteredConsumptionsCalculable) {
+  if (!isOpeningPeriod && !input.allMeteredConsumptionsCalculable) {
     blockers.push({
       code: "period.consumption_not_calculable",
       severity: "error",
@@ -78,7 +80,7 @@ export function evaluatePeriodReadiness(input: ReadinessInput): ReadinessResult 
     });
   }
 
-  if (input.hasNegativeUnmetered) {
+  if (!isOpeningPeriod && input.hasNegativeUnmetered) {
     blockers.push({
       code: "period.negative_unmetered",
       severity: "error",

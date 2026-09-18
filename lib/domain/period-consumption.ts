@@ -2,7 +2,7 @@ import {
   consumptionFromApprovedReadings,
   unmeteredFloorConsumption,
 } from "./consumption";
-import { unmeteredConsumptionIssue } from "./validation";
+import { previousReadingIssue, unmeteredConsumptionIssue } from "./validation";
 import type { ReadingStatus, ValidationIssue } from "./types";
 
 export type CatalogFloor = {
@@ -63,6 +63,7 @@ export function buildPeriodConsumptions(input: {
   totals: Array<{ serviceId: string; total: number }>;
   currentReadings: SlotReading[];
   previousBySlot: SlotPrevious[];
+  isOpeningPeriod?: boolean;
 }): {
   lines: ConsumptionLine[];
   hasNegativeUnmetered: boolean;
@@ -118,11 +119,12 @@ export function buildPeriodConsumptions(input: {
 
       const issues: ValidationIssue[] = [];
       if (result.status === "missing_previous" && currentApproved !== null) {
-        issues.push({
-          code: "reading.missing_previous",
-          severity: "warning",
-          message: `${floor.name} / ${service.name}: no hay lectura anterior aprobada. El consumo no es liquidable.`,
-        });
+        issues.push(
+          previousReadingIssue(!input.isOpeningPeriod, {
+            floorName: floor.name,
+            serviceName: service.name,
+          }),
+        );
       }
 
       lines.push({

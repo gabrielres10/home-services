@@ -46,4 +46,17 @@ describe("period status", () => {
     expect(canMarkPeriodReady("open", ready)).toBe(true);
     expect(periodStatusLabel("open")).toBe("Pendiente de completar");
   });
+
+  it("el período inicial queda listo con lecturas aprobadas, sin recibo ni consumo", () => {
+    const ready = evaluatePeriodReadiness({
+      expectedCount: 4,
+      approvedCount: 4,
+      billComplete: false,
+      allMeteredConsumptionsCalculable: false,
+      hasNegativeUnmetered: false,
+      isOpeningPeriod: true,
+    });
+    expect(ready.ready).toBe(true);
+    expect(canMarkPeriodReady("open", ready)).toBe(true);
+  });
 });

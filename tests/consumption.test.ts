@@ -53,18 +53,34 @@ describe("unmeteredFloorConsumption", () => {
 describe("findPreviousApprovedValue", () => {
   it("ignora lecturas pendientes y usa la última aprobada anterior", () => {
     const value = findPreviousApprovedValue("2026-09-01", [
-      { periodEndsOn: "2026-08-31", status: "pending", value: 9999 },
-      { periodEndsOn: "2026-08-31", status: "approved", value: 1284 },
-      { periodEndsOn: "2026-07-31", status: "approved", value: 1200 },
-      { periodEndsOn: "2026-09-30", status: "approved", value: 1301 },
+      { periodStartsOn: "2026-08-01", periodEndsOn: "2026-08-31", status: "pending", value: 9999 },
+      { periodStartsOn: "2026-08-01", periodEndsOn: "2026-08-31", status: "approved", value: 1284 },
+      { periodStartsOn: "2026-07-01", periodEndsOn: "2026-07-31", status: "approved", value: 1200 },
+      { periodStartsOn: "2026-09-01", periodEndsOn: "2026-09-30", status: "approved", value: 1301 },
     ]);
     expect(value).toBe(1284);
   });
 
   it("no usa una lectura pendiente como anterior", () => {
     const value = findPreviousApprovedValue("2026-09-01", [
-      { periodEndsOn: "2026-08-31", status: "pending", value: 1500 },
-      { periodEndsOn: "2026-08-31", status: "rejected", value: 1400 },
+      { periodStartsOn: "2026-08-01", periodEndsOn: "2026-08-31", status: "pending", value: 1500 },
+      { periodStartsOn: "2026-08-01", periodEndsOn: "2026-08-31", status: "rejected", value: 1400 },
+    ]);
+    expect(value).toBeNull();
+  });
+
+  it("encadena períodos que comparten el día de lectura", () => {
+    const value = findPreviousApprovedValue("2026-02-11", [
+      { periodStartsOn: "2026-01-10", periodEndsOn: "2026-02-11", status: "approved", value: 1284 },
+      { periodStartsOn: "2026-02-11", periodEndsOn: "2026-03-12", status: "approved", value: 1301 },
+    ]);
+    expect(value).toBe(1284);
+  });
+
+  it("el período más antiguo no tiene lectura anterior", () => {
+    const value = findPreviousApprovedValue("2026-01-10", [
+      { periodStartsOn: "2026-02-11", periodEndsOn: "2026-03-12", status: "approved", value: 1301 },
+      { periodStartsOn: "2026-01-10", periodEndsOn: "2026-02-11", status: "approved", value: 1284 },
     ]);
     expect(value).toBeNull();
   });

@@ -7,7 +7,7 @@ import { PeriodActions } from "@/components/period-actions";
 import { PeriodStatusBadge, ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import { ReadingReviewCard } from "@/components/reading-review-card";
 import { loadPeriodDetail, numericOrEmpty } from "@/lib/data/period-detail";
-import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { consumptionDisplay, formatDate, formatDateTime, formatNumber, previousReadingDisplay } from "@/lib/format";
 
 export default async function PeriodDetailPage({
   params,
@@ -32,6 +32,7 @@ export default async function PeriodDetailPage({
     consumptions,
     counts,
     readiness,
+    isOpeningPeriod,
     statusLabel,
   } = detail;
 
@@ -52,22 +53,38 @@ export default async function PeriodDetailPage({
             <PeriodStatusBadge status={period.status} label={statusLabel} />
           </div>
           <ul className="mt-4 space-y-1 text-sm">
-            <li>Recibo {bill?.pdf_storage_path ? "✓ Cargado" : "✗ Pendiente"}</li>
+            <li>Recibo {bill?.pdf_storage_path ? "✓ Cargado" : isOpeningPeriod ? "Opcional (período inicial)" : "✗ Pendiente"}</li>
             <li>
               Lecturas {counts.approvedCount}/{counts.expectedCount} aprobadas
             </li>
             {allApproved ? <li>✓ Todas las lecturas recibidas y aprobadas</li> : null}
-            {consumptions.allMeteredCalculable && !consumptions.hasNegativeUnmetered ? (
+            {isOpeningPeriod ? (
+              <li>Período inicial: estas lecturas son la referencia del siguiente período</li>
+            ) : consumptions.allMeteredCalculable && !consumptions.hasNegativeUnmetered ? (
               <li>✓ Consumos calculados</li>
             ) : (
               <li>Consumos pendientes o con error</li>
             )}
           </ul>
+          {isOpeningPeriod ? (
+            <p className="mt-4 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+              Este es el período con la fecha inicial más antigua. Sus lecturas aprobadas
+              quedan como referencia. El consumo se calcula a partir del siguiente período,
+              aunque ambos compartan el día de lectura.
+            </p>
+          ) : null}
         </section>
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Recibo</h2>
-          <IssueList issues={billIssues} />
+          {isOpeningPeriod ? (
+            <p className="text-sm text-stone-600">
+              El recibo es opcional en el período inicial. Si lo cargas, se guarda, pero no
+              se usa para calcular consumos.
+            </p>
+          ) : (
+            <IssueList issues={billIssues} />
+          )}
           <BillForm
             periodId={period.id}
             notes={bill?.notes ?? ""}
@@ -150,6 +167,7 @@ export default async function PeriodDetailPage({
                 rejectionReason={card.reading?.rejection_reason ?? null}
                 issues={card.issues}
                 warningsNeedConfirm={card.warningsNeedConfirm}
+                isOpeningPeriod={isOpeningPeriod}
               />
               {card.audits.length > 0 ? (
                 <details className="rounded border border-stone-200 bg-white px-4 py-2 text-sm">
@@ -193,10 +211,10 @@ export default async function PeriodDetailPage({
                           ? "Diferencia"
                           : "Igual que agua"}
                     </td>
-                    <td className="px-3 py-2">{formatNumber(line.previous)}</td>
+                    <td className="px-3 py-2">{previousReadingDisplay(line.previous, isOpeningPeriod && line.source === "meter")}</td>
                     <td className="px-3 py-2">{formatNumber(line.current)}</td>
                     <td className="px-3 py-2">
-                      {line.consumption === null ? "—" : formatNumber(line.consumption)}
+                      {consumptionDisplay(line.consumption, isOpeningPeriod && line.source === "meter")}
                       {line.issues.length > 0 ? " ⚠" : ""}
                     </td>
                   </tr>

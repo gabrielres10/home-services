@@ -58,9 +58,14 @@ export function findPreviousApprovedValue(
   const previous = history
     .filter(
       (item) =>
-        item.status === "approved" && item.periodEndsOn < currentPeriodStartsOn,
+        item.status === "approved" && item.periodStartsOn < currentPeriodStartsOn,
     )
-    .sort((a, b) => (a.periodEndsOn < b.periodEndsOn ? 1 : -1));
+    .sort((a, b) => {
+      if (a.periodStartsOn !== b.periodStartsOn) {
+        return a.periodStartsOn < b.periodStartsOn ? 1 : -1;
+      }
+      return a.periodEndsOn < b.periodEndsOn ? 1 : -1;
+    });
 
   const latest = previous[0];
   return latest === undefined ? null : latest.value;

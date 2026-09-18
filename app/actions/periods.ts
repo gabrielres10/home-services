@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth/current-user";
 import { periodLabelFromDates } from "@/lib/domain/period-label";
 import { evaluatePeriodReadiness } from "@/lib/domain/period-status";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { loadCatalog, loadPreviousBySlots } from "@/lib/data/catalog";
+import { loadCatalog, loadPreviousBySlots, hasAnyEarlierPeriod } from "@/lib/data/catalog";
 import { buildPeriodConsumptions } from "@/lib/domain/period-consumption";
 import { validateBillTotals } from "@/lib/domain/validation";
 
@@ -91,6 +91,7 @@ export async function markPeriodReady(periodId: string): Promise<{ error: string
     currentPeriodStartsOn: period.starts_on,
   });
 
+  const isOpeningPeriod = !(await hasAnyEarlierPeriod(period.starts_on));
   const consumptions = buildPeriodConsumptions({
     floors: catalog.floors,
     services: catalog.services,
@@ -103,6 +104,7 @@ export async function markPeriodReady(periodId: string): Promise<{ error: string
       status: row.status,
     })),
     previousBySlot,
+    isOpeningPeriod,
   });
 
   const totalsByCode = new Map(
@@ -125,6 +127,7 @@ export async function markPeriodReady(periodId: string): Promise<{ error: string
     billComplete: billIssues.filter((issue) => issue.severity === "error").length === 0,
     allMeteredConsumptionsCalculable: consumptions.allMeteredCalculable,
     hasNegativeUnmetered: consumptions.hasNegativeUnmetered,
+    isOpeningPeriod,
   });
 
   if (!readiness.ready) {

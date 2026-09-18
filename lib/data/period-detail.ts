@@ -13,6 +13,7 @@ import {
 } from "@/lib/domain/period-status";
 import {
   currentLessThanPreviousIssue,
+  previousReadingIssue,
   validateBillTotals,
   validateReadingDraft,
 } from "@/lib/domain/validation";
@@ -123,6 +124,7 @@ export async function loadPeriodDetail(periodId: string) {
     status: row.status,
   }));
 
+  const isOpeningPeriod = !earlierPeriodExists;
   const consumptions = buildPeriodConsumptions({
     floors: catalog.floors,
     services: catalog.services,
@@ -130,6 +132,7 @@ export async function loadPeriodDetail(periodId: string) {
     totals,
     currentReadings,
     previousBySlot,
+    isOpeningPeriod,
   });
 
   const totalsByCode = new Map<string, number | null>();
@@ -177,13 +180,8 @@ export async function loadPeriodDetail(periodId: string) {
             message: "Debe adjuntarse una fotografía del contador.",
           });
         }
-        if (previous === null && earlierPeriodExists) {
-          issues.push({
-            code: "reading.missing_previous",
-            severity: "warning",
-            message:
-              "No hay una lectura anterior aprobada. El consumo no se puede calcular todavía.",
-          });
+        if (previous === null) {
+          issues.push(previousReadingIssue(earlierPeriodExists));
         }
       } else {
         issues.push(
@@ -224,7 +222,9 @@ export async function loadPeriodDetail(periodId: string) {
         consumption: consumptionLine?.consumption ?? null,
         issues,
         audits: readingAudits,
-        warningsNeedConfirm: issues.some((issue) => issue.severity === "warning"),
+        warningsNeedConfirm: issues.some(
+          (issue) => issue.severity === "warning" && issue.code !== "reading.opening",
+        ),
       };
     }),
   );
@@ -243,6 +243,7 @@ export async function loadPeriodDetail(periodId: string) {
     billComplete: billIssues.filter((issue) => issue.severity === "error").length === 0,
     allMeteredConsumptionsCalculable: consumptions.allMeteredCalculable,
     hasNegativeUnmetered: consumptions.hasNegativeUnmetered,
+    isOpeningPeriod,
   });
 
   return {
@@ -256,6 +257,7 @@ export async function loadPeriodDetail(periodId: string) {
     consumptions,
     counts,
     readiness,
+    isOpeningPeriod,
     statusLabel: periodStatusLabel(period.status),
   };
 }
