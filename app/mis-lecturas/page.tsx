@@ -4,6 +4,7 @@ import { AppHeader } from "@/components/app-header";
 import { IssueList } from "@/components/issue-list";
 import { ReadingForm } from "@/components/reading-form";
 import { ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
+import { PageMain } from "@/components/ui";
 import { loadCatalog, loadPreviousApprovedValue, hasAnyEarlierPeriod } from "@/lib/data/catalog";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { signedUrl } from "@/lib/data/period-detail";
@@ -18,7 +19,7 @@ export default async function MyReadingsPage() {
     return (
       <>
         <AppHeader user={user} title="Mis lecturas" />
-        <main className="mx-auto max-w-3xl px-4 py-6">
+        <PageMain variant="narrow">
           <IssueList
             issues={[
               {
@@ -29,7 +30,7 @@ export default async function MyReadingsPage() {
               },
             ]}
           />
-        </main>
+        </PageMain>
       </>
     );
   }
@@ -60,10 +61,11 @@ export default async function MyReadingsPage() {
   async function renderPeriod(period: NonNullable<typeof periods>[number], editable: boolean) {
     const earlier = await hasAnyEarlierPeriod(period.starts_on);
     return (
-      <section key={period.id} className="space-y-4 rounded border border-stone-200 bg-white p-4">
+      <section key={period.id} className="stack-lg border-t border-line pt-6">
         <div>
-          <h3 className="text-lg font-medium">{period.label}</h3>
-          <p className="text-sm text-stone-600">
+          <p className="kicker">{editable ? "Abierto" : "Anterior"}</p>
+          <h3 className="section-title mt-1">{period.label}</h3>
+          <p className="muted mt-1 text-[0.9rem]">
             {formatDate(period.starts_on)} — {formatDate(period.ends_on)}
           </p>
         </div>
@@ -99,9 +101,11 @@ export default async function MyReadingsPage() {
           }
 
           return (
-            <div key={meter.serviceId} className="space-y-3 border-t border-stone-100 pt-3">
-              <div className="flex items-center gap-2">
-                <h4 className="font-medium">{service?.name}</h4>
+            <div key={meter.serviceId} className="stack-md border-t border-line/70 pt-5">
+              <div className="flex flex-wrap items-center gap-3">
+                <h4 className="type-display text-[1.25rem] font-medium">
+                  {service?.name}
+                </h4>
                 {reading ? <ReadingStatusBadge status={reading.status} /> : <MissingBadge />}
               </div>
               {photoUrl ? (
@@ -111,13 +115,15 @@ export default async function MyReadingsPage() {
                   <img
                     src={photoUrl}
                     alt={`Fotografía enviada de ${service?.name}`}
-                    className="max-h-64 rounded border border-stone-200 object-contain"
+                    className="max-h-64 w-full bg-[color-mix(in_srgb,var(--ink)_6%,var(--paper))] object-contain"
                   />
                 </>
               ) : null}
               {reading ? (
-                <p className="text-sm">
-                  Enviada: {formatNumber(Number(reading.value))} {service?.unit}. Anterior:{" "}
+                <p className="text-[0.95rem]">
+                  Enviada:{" "}
+                  <strong className="figure">{formatNumber(Number(reading.value))}</strong>{" "}
+                  {service?.unit}. Anterior:{" "}
                   {previousReadingDisplay(previous, !earlier)}
                 </p>
               ) : null}
@@ -151,34 +157,36 @@ export default async function MyReadingsPage() {
   return (
     <>
       <AppHeader user={user} title="Mis lecturas" />
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-6">
-        <p className="text-sm text-stone-600">
-          Piso: <strong>{user.floorName}</strong>. Introduce solo la lectura actual y la
-          fotografía. La lectura anterior se toma del último valor aprobado de un período
-          que empiece antes. En el período más antiguo se registra la lectura inicial; el
-          consumo se calcula desde el siguiente.
+      <PageMain variant="narrow">
+        <p className="muted mb-8 max-w-[38rem] text-[0.95rem]">
+          Piso: <strong className="text-ink">{user.floorName}</strong>. Introduce solo la
+          lectura actual y la fotografía. La lectura anterior se toma del último valor
+          aprobado de un período que empiece antes. En el período más antiguo se registra
+          la lectura inicial; el consumo se calcula desde el siguiente.
         </p>
-        {openPeriods.length === 0 ? (
-          <p>No hay períodos abiertos que requieran lecturas.</p>
-        ) : (
-          await Promise.all(openPeriods.map((period) => renderPeriod(period, true)))
-        )}
-        {otherPeriods.length > 0 ? (
-          <details>
-            <summary className="cursor-pointer text-sm font-medium">Períodos anteriores</summary>
-            <div className="mt-3 space-y-4">
-              {await Promise.all(otherPeriods.map((period) => renderPeriod(period, false)))}
-            </div>
-          </details>
-        ) : null}
-        <p className="text-xs text-stone-500">
+        <div className="stack-xl">
+          {openPeriods.length === 0 ? (
+            <p>No hay períodos abiertos que requieran lecturas.</p>
+          ) : (
+            await Promise.all(openPeriods.map((period) => renderPeriod(period, true)))
+          )}
+          {otherPeriods.length > 0 ? (
+            <details>
+              <summary className="archive-toggle">Períodos anteriores</summary>
+              <div className="mt-5 stack-lg">
+                {await Promise.all(otherPeriods.map((period) => renderPeriod(period, false)))}
+              </div>
+            </details>
+          ) : null}
+        </div>
+        <p className="muted mt-10 text-[0.78rem]">
           Si necesitas volver al inicio, usa{" "}
-          <Link className="underline" href="/">
+          <Link className="link-quiet" href="/">
             esta página
           </Link>
           .
         </p>
-      </main>
+      </PageMain>
     </>
   );
 }

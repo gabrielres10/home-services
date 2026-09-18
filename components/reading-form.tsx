@@ -7,6 +7,7 @@ import { optimizeMeterPhoto } from "@/lib/images/optimize";
 import { previousReadingDisplay } from "@/lib/format";
 import type { ValidationIssue } from "@/lib/domain/types";
 import { IssueList } from "@/components/issue-list";
+import { SubmitButton } from "@/components/submit-button";
 
 export function ReadingForm({
   periodId,
@@ -57,57 +58,54 @@ export function ReadingForm({
   }
 
   return (
-    <ActionForm action={action} className="space-y-3">
+    <ActionForm action={action} className="stack-md">
       <input type="hidden" name="period_id" value={periodId} />
       <input type="hidden" name="floor_id" value={floorId} />
       <input type="hidden" name="service_id" value={serviceId} />
-      <p className="text-sm text-stone-600">
+      <p className="muted text-[0.86rem]">
         {floorName} · {serviceName} ({unit})
       </p>
-      <p className="text-sm">
-        Lectura anterior:{" "}
-        <strong>
+      <p className="period-name-preview">
+        <span className="kicker">Lectura anterior</span>
+        <strong className={previousValue === null ? "type-display-placeholder" : undefined}>
           {previousReadingDisplay(previousValue, isOpeningPeriod)}
         </strong>
       </p>
       <IssueList issues={issues} />
-      <fieldset disabled={disabled || pendingPhoto} className="space-y-3">
-        <label className="block text-sm">
-          <span className="mb-1 block text-stone-700">Lectura actual</span>
+      <fieldset disabled={disabled || pendingPhoto} className="stack-md border-0 p-0">
+        <label className="field">
+          <span className="field-label">Lectura actual</span>
           <input
             name="value"
             inputMode="decimal"
             required
             defaultValue={currentValue}
-            className="w-full rounded border border-stone-300 px-3 py-2"
+            className="input-control input-figure"
           />
         </label>
-        <label className="block text-sm">
-          <span className="mb-1 block text-stone-700">Fecha de lectura</span>
+        <label className="field">
+          <span className="field-label">Fecha de lectura</span>
           <input
             name="reading_date"
             type="date"
             required
             defaultValue={readingDate}
-            className="w-full rounded border border-stone-300 px-3 py-2"
+            className="input-control"
           />
         </label>
-        <label className="block text-sm">
-          <span className="mb-1 block text-stone-700">Fotografía del contador</span>
+        <label className="field">
+          <span className="field-label">Fotografía del contador</span>
           <input
             name="photo"
             type="file"
             accept="image/*"
             required={photoRequired}
-            className="block w-full text-sm"
+            className="input-control file-control"
           />
         </label>
-        <button
-          type="submit"
-          className="rounded bg-stone-900 px-4 py-2 text-white hover:bg-stone-800 disabled:opacity-50"
-        >
-          {pendingPhoto ? "Preparando imagen…" : "Enviar lectura"}
-        </button>
+        <SubmitButton busy={pendingPhoto} pendingLabel="Preparando imagen…">
+          Enviar lectura
+        </SubmitButton>
       </fieldset>
     </ActionForm>
   );

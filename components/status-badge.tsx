@@ -1,9 +1,9 @@
 import type { PeriodStatus, ReadingStatus } from "@/lib/domain/types";
 
 const readingStyles: Record<ReadingStatus, string> = {
-  pending: "bg-amber-100 text-amber-900",
-  approved: "bg-green-100 text-green-900",
-  rejected: "bg-red-100 text-red-900",
+  pending: "badge-pending",
+  approved: "badge-approved",
+  rejected: "badge-rejected",
 };
 
 const readingLabels: Record<ReadingStatus, string> = {
@@ -13,17 +13,13 @@ const readingLabels: Record<ReadingStatus, string> = {
 };
 
 const periodStyles: Record<PeriodStatus, string> = {
-  open: "bg-amber-100 text-amber-900",
-  ready: "bg-green-100 text-green-900",
-  closed: "bg-stone-200 text-stone-700",
+  open: "badge-open",
+  ready: "badge-ready",
+  closed: "badge-closed",
 };
 
 export function ReadingStatusBadge({ status }: { status: ReadingStatus }) {
-  return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${readingStyles[status]}`}>
-      {readingLabels[status]}
-    </span>
-  );
+  return <span className={`badge ${readingStyles[status]}`}>{readingLabels[status]}</span>;
 }
 
 export function PeriodStatusBadge({
@@ -33,17 +29,9 @@ export function PeriodStatusBadge({
   status: PeriodStatus;
   label: string;
 }) {
-  return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${periodStyles[status]}`}>
-      {label}
-    </span>
-  );
+  return <span className={`badge ${periodStyles[status]}`}>{label}</span>;
 }
 
 export function MissingBadge() {
-  return (
-    <span className="rounded bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">
-      Sin enviar
-    </span>
-  );
+  return <span className="badge badge-missing">Sin enviar</span>;
 }

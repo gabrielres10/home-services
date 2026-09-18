@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/current-user";
 import { AppHeader } from "@/components/app-header";
 import { PeriodStatusBadge } from "@/components/status-badge";
+import { PageMain, SectionHeading } from "@/components/ui";
 import { loadPeriodList } from "@/lib/data/period-detail";
 
 export default async function AdminHomePage() {
@@ -12,56 +13,69 @@ export default async function AdminHomePage() {
   return (
     <>
       <AppHeader user={user} title="Administración" />
-      <main className="mx-auto max-w-5xl space-y-6 px-4 py-6">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">Períodos</h2>
-          <Link
-            href="/admin/periodos/nuevo"
-            className="rounded bg-stone-900 px-4 py-2 text-sm text-white hover:bg-stone-800"
-          >
-            Crear período
-          </Link>
-        </div>
+      <PageMain>
+        <SectionHeading
+          action={
+            <Link href="/admin/periodos/nuevo" className="btn btn-primary">
+              Crear período
+            </Link>
+          }
+        >
+          Períodos
+        </SectionHeading>
         {current ? (
-          <p className="text-sm text-stone-600">
+          <p className="muted mb-6 text-[0.95rem]">
             Período actual:{" "}
-            <Link className="underline" href={`/admin/periodos/${current.id}`}>
+            <Link className="link-quiet" href={`/admin/periodos/${current.id}`}>
               {current.label}
             </Link>
           </p>
         ) : (
-          <p className="text-sm text-stone-600">
+          <p className="muted mb-6 max-w-[40rem] text-[0.95rem]">
             Todavía no hay períodos. Crea primero el período más antiguo: sus lecturas
             aprobadas serán la referencia inicial. El consumo se calcula desde el
             siguiente período.
           </p>
         )}
-        <ul className="space-y-3">
-          {periods.map((period) => (
-            <li key={period.id}>
-              <Link
-                href={`/admin/periodos/${period.id}`}
-                className="block rounded border border-stone-200 bg-white p-4 hover:border-stone-400"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-lg font-medium">{period.label}</h3>
-                  <PeriodStatusBadge status={period.status} label={period.statusLabel} />
-                </div>
-                <p className="mt-2 text-sm text-stone-600">
-                  Lecturas: {period.counts.approvedCount}/{period.counts.expectedCount}{" "}
-                  aprobadas
-                  {period.counts.missingCount > 0
-                    ? ` · ${period.counts.missingCount} sin enviar`
-                    : ""}
-                  {period.counts.pendingCount > 0
-                    ? ` · ${period.counts.pendingCount} pendientes`
-                    : ""}
-                </p>
-              </Link>
-            </li>
-          ))}
+        <ul className="period-ledger">
+          {periods.map((period) => {
+            const progress =
+              period.counts.expectedCount > 0
+                ? Math.round(
+                    (period.counts.approvedCount / period.counts.expectedCount) * 100,
+                  )
+                : 0;
+            return (
+              <li key={period.id}>
+                <Link
+                  href={`/admin/periodos/${period.id}`}
+                  className={`period-row${period.id === current?.id ? " is-current" : ""}`}
+                >
+                  <div className="period-row-top">
+                    <h3 className="period-row-label">{period.label}</h3>
+                    <PeriodStatusBadge status={period.status} label={period.statusLabel} />
+                  </div>
+                  <p className="period-row-meta">
+                    Lecturas: {period.counts.approvedCount}/{period.counts.expectedCount}{" "}
+                    aprobadas
+                    {period.counts.missingCount > 0
+                      ? ` · ${period.counts.missingCount} sin enviar`
+                      : ""}
+                    {period.counts.pendingCount > 0
+                      ? ` · ${period.counts.pendingCount} pendientes`
+                      : ""}
+                  </p>
+                  {period.id === current?.id && period.counts.expectedCount > 0 ? (
+                    <div className="reading-meter" aria-hidden>
+                      <span style={{ width: `${progress}%` }} />
+                    </div>
+                  ) : null}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
-      </main>
+      </PageMain>
     </>
   );
 }

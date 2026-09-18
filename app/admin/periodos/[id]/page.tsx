@@ -7,10 +7,18 @@ import { PeriodActions } from "@/components/period-actions";
 import { PeriodStatusBadge, ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import { ReadingReviewCard } from "@/components/reading-review-card";
 import { SettlementPanel } from "@/components/settlement-panel";
+import { PageMain, SectionHeading } from "@/components/ui";
 import { loadPeriodDetail, numericOrEmpty } from "@/lib/data/period-detail";
 import { billChargeFields, billChargeLookup } from "@/lib/domain/bill-charges";
 import { canClosePeriod } from "@/lib/domain/period-status";
-import { consumptionDisplay, formatDate, formatDateTime, formatMoney, formatNumber, previousReadingDisplay } from "@/lib/format";
+import {
+  consumptionDisplay,
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatNumber,
+  previousReadingDisplay,
+} from "@/lib/format";
 
 export default async function PeriodDetailPage({
   params,
@@ -50,282 +58,313 @@ export default async function PeriodDetailPage({
     isOpeningPeriod,
     hasSettlement: Boolean(settlement),
   });
+  const consumptionsOk =
+    consumptions.allMeteredCalculable && !consumptions.hasNegativeUnmetered;
 
   return (
     <>
       <AppHeader user={user} title={period.label} />
-      <main className="mx-auto max-w-5xl space-y-8 px-4 py-6">
-        <section className="rounded border border-stone-200 bg-white p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="text-xl font-semibold">{period.label}</h2>
-              <p className="text-sm text-stone-600">
+      <PageMain>
+        <div className="stack-xl">
+          <section className="period-hero">
+            <div className="period-hero-copy">
+              <PeriodStatusBadge status={period.status} label={statusLabel} />
+              <h2>{period.label}</h2>
+              <p>
                 {formatDate(period.starts_on)} — {formatDate(period.ends_on)}
               </p>
             </div>
-            <PeriodStatusBadge status={period.status} label={statusLabel} />
-          </div>
-          <ul className="mt-4 space-y-1 text-sm">
-            <li>
-              Recibo{" "}
-              {billComplete
-                ? "✓ Completo"
-                : isOpeningPeriod
-                  ? "Opcional (período inicial)"
-                  : "✗ Incompleto"}
-            </li>
-            <li>
-              Lecturas {counts.approvedCount}/{counts.expectedCount} aprobadas
-            </li>
-            {allApproved ? <li>✓ Todas las lecturas recibidas y aprobadas</li> : null}
-            {isOpeningPeriod ? (
-              <li>Período inicial: estas lecturas son la referencia del siguiente período</li>
-            ) : consumptions.allMeteredCalculable && !consumptions.hasNegativeUnmetered ? (
-              <li>✓ Consumos calculados</li>
-            ) : (
-              <li>Consumos pendientes o con error</li>
-            )}
-            {isOpeningPeriod ? null : settlement ? (
-              <li>✓ Liquidación calculada</li>
-            ) : (
-              <li>Liquidación pendiente</li>
-            )}
-          </ul>
+            <ul className="status-list">
+              <li className={statusClass(billComplete, !billComplete && !isOpeningPeriod)}>
+                Recibo{" "}
+                {billComplete
+                  ? "Completo"
+                  : isOpeningPeriod
+                    ? "Opcional (período inicial)"
+                    : "Incompleto"}
+              </li>
+              <li className={statusClass(allApproved, counts.missingCount > 0)}>
+                Lecturas {counts.approvedCount}/{counts.expectedCount} aprobadas
+              </li>
+              {allApproved ? (
+                <li className="status-item is-done">Todas las lecturas recibidas y aprobadas</li>
+              ) : null}
+              {isOpeningPeriod ? (
+                <li className="status-item is-done">
+                  Período inicial: estas lecturas son la referencia del siguiente período
+                </li>
+              ) : (
+                <li className={statusClass(consumptionsOk, consumptions.hasNegativeUnmetered)}>
+                  {consumptionsOk ? "Consumos calculados" : "Consumos pendientes o con error"}
+                </li>
+              )}
+              {isOpeningPeriod ? null : (
+                <li className={statusClass(Boolean(settlement))}>
+                  {settlement ? "Liquidación calculada" : "Liquidación pendiente"}
+                </li>
+              )}
+            </ul>
+          </section>
+
           {isOpeningPeriod ? (
-            <p className="mt-4 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            <p className="notice notice-warning max-w-[46rem]">
               Este es el período con la fecha inicial más antigua. Sus lecturas aprobadas
               quedan como referencia. El consumo se calcula a partir del siguiente período,
               aunque ambos compartan el día de lectura.
             </p>
           ) : null}
-        </section>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Recibo</h2>
-          {isOpeningPeriod ? (
-            <p className="text-sm text-stone-600">
-              El recibo es opcional en el período inicial. Si lo cargas, se guarda, pero no
-              se usa para calcular consumos.
-            </p>
-          ) : (
-            <IssueList issues={billIssues} />
-          )}
-          <BillForm
-            periodId={period.id}
-            notes={bill?.notes ?? ""}
-            hasPdf={Boolean(bill?.pdf_storage_path)}
-            otherServicesApSubtotal={numericOrEmpty(bill?.other_services_ap_subtotal ?? null)}
-            locked={period.status === "closed"}
-            services={catalog.services.map((service) => ({
-              code: service.code,
-              name: service.name,
-              unit: service.unit,
-              value: numericOrEmpty(totalsByCode.get(service.code) ?? null),
-              charges: billChargeFields(service.code).map((field) => ({
-                code: field.code,
-                label: field.label,
-                value: numericOrEmpty(
-                  billChargeLookup(chargeValues, service.code, field.code),
-                ),
-              })),
-            }))}
-          />
-          {catalog.services.some((service) =>
-            billChargeFields(service.code).some(
-              (field) => billChargeLookup(chargeValues, service.code, field.code) !== null,
-            ),
-          ) ? (
-            <div className="overflow-x-auto rounded border border-stone-200 bg-white">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-stone-50 text-stone-600">
+          <section>
+            <SectionHeading kicker="Cuenta de la casa">Recibo</SectionHeading>
+            {isOpeningPeriod ? (
+              <p className="muted mb-5 max-w-[42rem] text-[0.95rem]">
+                El recibo es opcional en el período inicial. Si lo cargas, se guarda, pero no
+                se usa para calcular consumos.
+              </p>
+            ) : (
+              <div className="mb-5">
+                <IssueList issues={billIssues} />
+              </div>
+            )}
+            <BillForm
+              periodId={period.id}
+              notes={bill?.notes ?? ""}
+              hasPdf={Boolean(bill?.pdf_storage_path)}
+              otherServicesApSubtotal={numericOrEmpty(bill?.other_services_ap_subtotal ?? null)}
+              locked={period.status === "closed"}
+              services={catalog.services.map((service) => ({
+                code: service.code,
+                name: service.name,
+                unit: service.unit,
+                value: numericOrEmpty(totalsByCode.get(service.code) ?? null),
+                charges: billChargeFields(service.code).map((field) => ({
+                  code: field.code,
+                  label: field.label,
+                  value: numericOrEmpty(
+                    billChargeLookup(chargeValues, service.code, field.code),
+                  ),
+                })),
+              }))}
+            />
+            {catalog.services.some((service) =>
+              billChargeFields(service.code).some(
+                (field) => billChargeLookup(chargeValues, service.code, field.code) !== null,
+              ),
+            ) ? (
+              <div className="ledger-wrap mt-8">
+                <table className="ledger">
+                  <thead>
+                    <tr>
+                      <th>Servicio</th>
+                      <th>Renglón</th>
+                      <th>Importe</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {catalog.services.flatMap((service) =>
+                      billChargeFields(service.code).map((field) => (
+                        <tr key={`${service.code}-${field.code}`}>
+                          <td>{service.name}</td>
+                          <td>{field.label}</td>
+                          <td>
+                            {formatMoney(
+                              billChargeLookup(chargeValues, service.code, field.code),
+                            )}
+                          </td>
+                        </tr>
+                      )),
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            {bill?.other_services_ap_subtotal != null ? (
+              <p className="mt-4 text-[0.95rem]">
+                Subtotal otros servicios + AP (alumbrado público):{" "}
+                <strong className="figure">
+                  {formatMoney(Number(bill.other_services_ap_subtotal))}
+                </strong>
+              </p>
+            ) : null}
+            {pdfUrl ? (
+              <iframe title="Recibo PDF" src={pdfUrl} className="doc-frame mt-6" />
+            ) : null}
+          </section>
+
+          <section>
+            <SectionHeading kicker="Contadores">Lecturas</SectionHeading>
+            <div className="meter-board">
+              {catalog.floors.map((floor) => {
+                const floorMeters = catalog.meters.filter((meter) => meter.floorId === floor.id);
+                if (floorMeters.length === 0) {
+                  return (
+                    <div key={floor.id} className="meter-board-row">
+                      <strong>{floor.name}</strong>
+                      <span className="muted">Calculado automáticamente</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={floor.id} className="meter-board-row">
+                    <strong>{floor.name}</strong>
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                      {floorMeters.map((meter) => {
+                        const card = readingCards.find(
+                          (item) =>
+                            item.meter.floorId === meter.floorId &&
+                            item.meter.serviceId === meter.serviceId,
+                        );
+                        const service = catalog.services.find((item) => item.id === meter.serviceId);
+                        return (
+                          <span
+                            key={`${meter.floorId}-${meter.serviceId}`}
+                            className="flex items-center gap-2"
+                          >
+                            <span className="muted">{service?.name}</span>
+                            {card?.reading ? (
+                              <ReadingStatusBadge status={card.reading.status} />
+                            ) : (
+                              <MissingBadge />
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section>
+            <SectionHeading kicker="Foto y valor">Revisión</SectionHeading>
+            {readingCards.map((card) => (
+              <div key={`${card.meter.floorId}-${card.meter.serviceId}`}>
+                <ReadingReviewCard
+                  periodId={period.id}
+                  floorId={card.meter.floorId}
+                  floorName={card.floor?.name ?? ""}
+                  serviceId={card.meter.serviceId}
+                  serviceName={card.service?.name ?? ""}
+                  unit={card.service?.unit ?? ""}
+                  readingId={card.reading?.id ?? null}
+                  status={card.reading?.status ?? null}
+                  submittedValue={
+                    card.reading ? Number(card.reading.submitted_value) : null
+                  }
+                  value={card.reading ? Number(card.reading.value) : null}
+                  previousValue={card.previous}
+                  consumption={card.consumption}
+                  photoUrl={card.photoUrl}
+                  readingDate={card.reading?.reading_date ?? period.ends_on}
+                  rejectionReason={card.reading?.rejection_reason ?? null}
+                  issues={card.issues}
+                  warningsNeedConfirm={card.warningsNeedConfirm}
+                  isOpeningPeriod={isOpeningPeriod}
+                  locked={periodLocked}
+                />
+                {card.audits.length > 0 ? (
+                  <details className="history-block">
+                    <summary>Historial</summary>
+                    <ul className="muted mt-2 space-y-1 text-[0.86rem]">
+                      {card.audits.map((audit) => (
+                        <li key={audit.id}>
+                          {formatDateTime(audit.occurred_at)} · {audit.action}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ) : null}
+              </div>
+            ))}
+          </section>
+
+          <section>
+            <SectionHeading kicker="Por piso">Consumos</SectionHeading>
+            <div className="ledger-wrap">
+              <table className="ledger">
+                <thead>
                   <tr>
-                    <th className="px-3 py-2">Servicio</th>
-                    <th className="px-3 py-2">Renglón</th>
-                    <th className="px-3 py-2">Importe</th>
+                    <th>Piso</th>
+                    <th>Servicio</th>
+                    <th>Origen</th>
+                    <th>Anterior</th>
+                    <th>Actual</th>
+                    <th>Consumo</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {catalog.services.flatMap((service) =>
-                    billChargeFields(service.code).map((field) => (
-                      <tr
-                        key={`${service.code}-${field.code}`}
-                        className="border-t border-stone-100"
-                      >
-                        <td className="px-3 py-2">{service.name}</td>
-                        <td className="px-3 py-2">{field.label}</td>
-                        <td className="px-3 py-2">
-                          {formatMoney(
-                            billChargeLookup(chargeValues, service.code, field.code),
-                          )}
-                        </td>
-                      </tr>
-                    )),
-                  )}
+                  {consumptions.lines.map((line) => (
+                    <tr key={`${line.floorId}-${line.serviceId}`}>
+                      <td>{line.floorName}</td>
+                      <td>{line.serviceName}</td>
+                      <td>
+                        {line.source === "meter"
+                          ? "Contador"
+                          : line.source === "difference"
+                            ? "Diferencia"
+                            : "Igual que agua"}
+                      </td>
+                      <td>
+                        {previousReadingDisplay(
+                          line.previous,
+                          isOpeningPeriod && line.source === "meter",
+                        )}
+                      </td>
+                      <td>{formatNumber(line.current)}</td>
+                      <td>
+                        {consumptionDisplay(
+                          line.consumption,
+                          isOpeningPeriod && line.source === "meter",
+                        )}
+                        {line.issues.length > 0 ? " ⚠" : ""}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          ) : null}
-          {bill?.other_services_ap_subtotal != null ? (
-            <p className="rounded border border-stone-200 bg-white px-3 py-2 text-sm">
-              Subtotal otros servicios + AP (alumbrado público):{" "}
-              <strong>{formatMoney(Number(bill.other_services_ap_subtotal))}</strong>
-            </p>
-          ) : null}
-          {pdfUrl ? (
-            <iframe
-              title="Recibo PDF"
-              src={pdfUrl}
-              className="h-[32rem] w-full rounded border border-stone-200 bg-white"
-            />
-          ) : null}
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Lecturas</h2>
-          {catalog.floors.map((floor) => {
-            const floorMeters = catalog.meters.filter((meter) => meter.floorId === floor.id);
-            if (floorMeters.length === 0) {
-              return (
-                <div key={floor.id} className="rounded border border-stone-200 bg-white p-4">
-                  <h3 className="font-medium">{floor.name}</h3>
-                  <p className="text-sm text-stone-600">Calculado automáticamente</p>
-                </div>
-              );
-            }
-            return (
-              <div key={floor.id} className="space-y-2">
-                <h3 className="font-medium">{floor.name}</h3>
-                {floorMeters.map((meter) => {
-                  const card = readingCards.find(
-                    (item) =>
-                      item.meter.floorId === meter.floorId &&
-                      item.meter.serviceId === meter.serviceId,
-                  );
-                  const service = catalog.services.find((item) => item.id === meter.serviceId);
-                  return (
-                    <p key={`${meter.floorId}-${meter.serviceId}`} className="flex items-center gap-2 text-sm">
-                      <span className="w-28">{service?.name}</span>
-                      {card?.reading ? (
-                        <ReadingStatusBadge status={card.reading.status} />
-                      ) : (
-                        <MissingBadge />
-                      )}
-                    </p>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </section>
-
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Revisión</h2>
-          {readingCards.map((card) => (
-            <div key={`${card.meter.floorId}-${card.meter.serviceId}`} className="space-y-2">
-              <ReadingReviewCard
-                periodId={period.id}
-                floorId={card.meter.floorId}
-                floorName={card.floor?.name ?? ""}
-                serviceId={card.meter.serviceId}
-                serviceName={card.service?.name ?? ""}
-                unit={card.service?.unit ?? ""}
-                readingId={card.reading?.id ?? null}
-                status={card.reading?.status ?? null}
-                submittedValue={
-                  card.reading ? Number(card.reading.submitted_value) : null
-                }
-                value={card.reading ? Number(card.reading.value) : null}
-                previousValue={card.previous}
-                consumption={card.consumption}
-                photoUrl={card.photoUrl}
-                readingDate={card.reading?.reading_date ?? period.ends_on}
-                rejectionReason={card.reading?.rejection_reason ?? null}
-                issues={card.issues}
-                warningsNeedConfirm={card.warningsNeedConfirm}
-                isOpeningPeriod={isOpeningPeriod}
-                locked={periodLocked}
-              />
-              {card.audits.length > 0 ? (
-                <details className="rounded border border-stone-200 bg-white px-4 py-2 text-sm">
-                  <summary className="cursor-pointer font-medium">Historial</summary>
-                  <ul className="mt-2 space-y-1 text-stone-600">
-                    {card.audits.map((audit) => (
-                      <li key={audit.id}>
-                        {formatDateTime(audit.occurred_at)} · {audit.action}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              ) : null}
+            <div className="mt-4">
+              <IssueList issues={consumptions.lines.flatMap((line) => line.issues)} />
             </div>
-          ))}
-        </section>
+          </section>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Consumos</h2>
-          <div className="overflow-x-auto rounded border border-stone-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-stone-50 text-stone-600">
-                <tr>
-                  <th className="px-3 py-2">Piso</th>
-                  <th className="px-3 py-2">Servicio</th>
-                  <th className="px-3 py-2">Origen</th>
-                  <th className="px-3 py-2">Anterior</th>
-                  <th className="px-3 py-2">Actual</th>
-                  <th className="px-3 py-2">Consumo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {consumptions.lines.map((line) => (
-                  <tr key={`${line.floorId}-${line.serviceId}`} className="border-t border-stone-100">
-                    <td className="px-3 py-2">{line.floorName}</td>
-                    <td className="px-3 py-2">{line.serviceName}</td>
-                    <td className="px-3 py-2">
-                      {line.source === "meter"
-                        ? "Contador"
-                        : line.source === "difference"
-                          ? "Diferencia"
-                          : "Igual que agua"}
-                    </td>
-                    <td className="px-3 py-2">{previousReadingDisplay(line.previous, isOpeningPeriod && line.source === "meter")}</td>
-                    <td className="px-3 py-2">{formatNumber(line.current)}</td>
-                    <td className="px-3 py-2">
-                      {consumptionDisplay(line.consumption, isOpeningPeriod && line.source === "meter")}
-                      {line.issues.length > 0 ? " ⚠" : ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <IssueList
-            issues={consumptions.lines.flatMap((line) => line.issues)}
+          <SettlementPanel
+            settlement={settlement}
+            unavailableMessage={settlementUnavailableMessage}
+            isOpeningPeriod={isOpeningPeriod}
           />
-        </section>
 
-        <SettlementPanel
-          settlement={settlement}
-          unavailableMessage={settlementUnavailableMessage}
-          isOpeningPeriod={isOpeningPeriod}
-        />
-
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Estado del período</h2>
-          <IssueList issues={readiness.blockers} />
-          <PeriodActions
-            periodId={period.id}
-            status={period.status}
-            canMarkReady={readiness.ready}
-            canClose={canClose}
-            closeBlockedMessage={
-              period.status === "ready" && !canClose
-                ? (settlementUnavailableMessage ??
-                  "La liquidación todavía no se puede calcular.")
-                : null
-            }
-          />
-        </section>
-      </main>
+          <section>
+            <SectionHeading kicker="Cierre">Estado del período</SectionHeading>
+            <IssueList issues={readiness.blockers} />
+            <div className="mt-4">
+              <PeriodActions
+                periodId={period.id}
+                status={period.status}
+                canMarkReady={readiness.ready}
+                canClose={canClose}
+                closeBlockedMessage={
+                  period.status === "ready" && !canClose
+                    ? (settlementUnavailableMessage ??
+                      "La liquidación todavía no se puede calcular.")
+                    : null
+                }
+              />
+            </div>
+          </section>
+        </div>
+      </PageMain>
     </>
   );
+}
+
+function statusClass(done: boolean, blocked = false) {
+  if (blocked) {
+    return "status-item is-blocked";
+  }
+  if (done) {
+    return "status-item is-done";
+  }
+  return "status-item is-wait";
 }

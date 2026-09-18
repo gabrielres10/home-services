@@ -2,16 +2,39 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { LoginForm } from "@/components/login-form";
+import { HouseMark } from "@/components/ui";
+
+function LoginShell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="auth-screen">
+      <div className="auth-frame">
+        <div className="auth-identity">
+          <HouseMark size="lg" />
+          <h1>Servicios de la vivienda</h1>
+          {children}
+        </div>
+        <div className="auth-panel">
+          <LoginForm />
+        </div>
+      </div>
+    </main>
+  );
+}
 
 export default async function LoginPage() {
   if (!getSupabaseEnv()) {
     return (
-      <main className="mx-auto flex min-h-full max-w-md flex-col justify-center px-4 py-16">
-        <h1 className="text-2xl font-semibold">Servicios de la vivienda</h1>
-        <p className="mt-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-          Faltan las variables NEXT_PUBLIC_SUPABASE_URL y
-          NEXT_PUBLIC_SUPABASE_ANON_KEY. Cópialas en .env.local. Ver el README.
-        </p>
+      <main className="auth-screen">
+        <div className="auth-frame auth-frame-solo">
+          <div className="auth-identity">
+            <HouseMark size="lg" />
+            <h1>Servicios de la vivienda</h1>
+            <div className="notice notice-error mt-6 max-w-[36ch]">
+              Faltan las variables NEXT_PUBLIC_SUPABASE_URL y
+              NEXT_PUBLIC_SUPABASE_ANON_KEY. Cópialas en .env.local. Ver el README.
+            </div>
+          </div>
+        </div>
       </main>
     );
   }
@@ -22,12 +45,8 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-full max-w-md flex-col justify-center px-4 py-16">
-      <h1 className="text-2xl font-semibold">Servicios de la vivienda</h1>
-      <p className="mt-2 mb-6 text-stone-600">
-        Inicia sesión para registrar o revisar lecturas.
-      </p>
-      <LoginForm />
-    </main>
+    <LoginShell>
+      <p>Inicia sesión para registrar o revisar lecturas.</p>
+    </LoginShell>
   );
 }

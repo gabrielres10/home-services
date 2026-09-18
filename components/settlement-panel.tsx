@@ -1,4 +1,5 @@
 import { IssueList } from "@/components/issue-list";
+import { SectionHeading } from "@/components/ui";
 import type { SettlementResult } from "@/lib/domain/settlement";
 import { formatMoney, formatNumber } from "@/lib/format";
 
@@ -13,9 +14,9 @@ export function SettlementPanel({
 }) {
   if (!settlement) {
     return (
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Liquidación</h2>
-        <p className="rounded border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700">
+      <section>
+        <SectionHeading kicker="Reparto">Liquidación</SectionHeading>
+        <p className="notice">
           {unavailableMessage ??
             (isOpeningPeriod
               ? "El período inicial no se liquida."
@@ -28,10 +29,10 @@ export function SettlementPanel({
   const { rates, floors, totals } = settlement;
 
   return (
-    <section className="space-y-4">
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold">Liquidación</h2>
-        <p className="text-sm text-stone-600">
+    <section className="stack-lg">
+      <div>
+        <SectionHeading kicker="Reparto">Liquidación</SectionHeading>
+        <p className="muted max-w-[42rem] text-[0.95rem]">
           El recibo de la casa se reparte entre {formatNumber(rates.floorCount)} pisos.
           Cada piso tiene derecho a {formatNumber(rates.energyCapPerFloor)} kWh y{" "}
           {formatNumber(rates.waterCapPerFloor)} m³ a tarifa subsidiada. Lo que se pase
@@ -41,12 +42,9 @@ export function SettlementPanel({
       </div>
 
       {settlement.adjustments.length > 0 ? (
-        <ul className="space-y-1">
+        <ul className="notice-list">
           {settlement.adjustments.map((message) => (
-            <li
-              key={message}
-              className="rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950"
-            >
+            <li key={message} className="notice notice-info">
               {message}
             </li>
           ))}
@@ -55,11 +53,42 @@ export function SettlementPanel({
 
       <IssueList issues={settlement.notes} />
 
-      <div className="overflow-x-auto rounded border border-stone-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <caption className="bg-stone-50 px-3 py-2 text-left font-medium text-stone-800">
-            Seis cifras y alumbrado público
-          </caption>
+      <div className="floor-statements">
+        {floors.map((floor) => (
+          <article key={floor.floorId} className="floor-statement">
+            <header>
+              <h3>{floor.floorName}</h3>
+              <p className="floor-total">{formatMoney(floor.total)}</p>
+            </header>
+            <dl>
+              <div>
+                <dt>Energía · {formatNumber(floor.energyKwh)} kWh</dt>
+                <dd>{formatMoney(floor.energyCost)}</dd>
+                <span className="split">
+                  {formatNumber(floor.energySubsidizedKwh)} kWh subsidio ·{" "}
+                  {formatNumber(floor.energyStandardKwh)} kWh estándar
+                </span>
+              </div>
+              <div>
+                <dt>Agua · {formatNumber(floor.waterM3)} m³</dt>
+                <dd>{formatMoney(floor.waterCost)}</dd>
+                <span className="split">
+                  {formatNumber(floor.waterSubsidizedM3)} m³ subsidio ·{" "}
+                  {formatNumber(floor.waterStandardM3)} m³ estándar
+                </span>
+              </div>
+              <div>
+                <dt>AP</dt>
+                <dd>{formatMoney(floor.otherServicesApCost)}</dd>
+              </div>
+            </dl>
+          </article>
+        ))}
+      </div>
+
+      <div className="ledger-wrap">
+        <table className="ledger">
+          <caption>Seis cifras y alumbrado público</caption>
           <tbody>
             <RateRow
               label="Precio energía subsidiada"
@@ -93,72 +122,35 @@ export function SettlementPanel({
         </table>
       </div>
 
-      <div className="overflow-x-auto rounded border border-stone-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-stone-50 text-stone-600">
+      <div className="ledger-wrap">
+        <table className="ledger">
+          <thead>
             <tr>
-              <th className="px-3 py-2">Piso</th>
-              <th className="px-3 py-2">Energía</th>
-              <th className="px-3 py-2">kWh subsidio</th>
-              <th className="px-3 py-2">kWh estándar</th>
-              <th className="px-3 py-2">Costo energía</th>
-              <th className="px-3 py-2">Agua</th>
-              <th className="px-3 py-2">m³ subsidio</th>
-              <th className="px-3 py-2">m³ estándar</th>
-              <th className="px-3 py-2">Costo agua</th>
-              <th className="px-3 py-2">AP</th>
-              <th className="px-3 py-2">Total a pagar</th>
+              <th>Bloque</th>
+              <th>Suma de pisos</th>
+              <th>Recibo</th>
             </tr>
           </thead>
           <tbody>
-            {floors.map((floor) => (
-              <tr key={floor.floorId} className="border-t border-stone-100">
-                <td className="px-3 py-2 font-medium">{floor.floorName}</td>
-                <td className="px-3 py-2">{formatNumber(floor.energyKwh)} kWh</td>
-                <td className="px-3 py-2">{formatNumber(floor.energySubsidizedKwh)}</td>
-                <td className="px-3 py-2">{formatNumber(floor.energyStandardKwh)}</td>
-                <td className="px-3 py-2">{formatMoney(floor.energyCost)}</td>
-                <td className="px-3 py-2">{formatNumber(floor.waterM3)} m³</td>
-                <td className="px-3 py-2">{formatNumber(floor.waterSubsidizedM3)}</td>
-                <td className="px-3 py-2">{formatNumber(floor.waterStandardM3)}</td>
-                <td className="px-3 py-2">{formatMoney(floor.waterCost)}</td>
-                <td className="px-3 py-2">{formatMoney(floor.otherServicesApCost)}</td>
-                <td className="px-3 py-2 font-medium">{formatMoney(floor.total)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="overflow-x-auto rounded border border-stone-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-stone-50 text-stone-600">
             <tr>
-              <th className="px-3 py-2">Bloque</th>
-              <th className="px-3 py-2">Suma de pisos</th>
-              <th className="px-3 py-2">Recibo</th>
+              <td>Energía</td>
+              <td>{formatMoney(totals.energy)}</td>
+              <td>{formatMoney(totals.billEnergy)}</td>
             </tr>
-          </thead>
-          <tbody>
-            <tr className="border-t border-stone-100">
-              <td className="px-3 py-2">Energía</td>
-              <td className="px-3 py-2">{formatMoney(totals.energy)}</td>
-              <td className="px-3 py-2">{formatMoney(totals.billEnergy)}</td>
+            <tr>
+              <td>Acueducto y alcantarillado</td>
+              <td>{formatMoney(totals.waterAndSewer)}</td>
+              <td>{formatMoney(totals.billWaterAndSewer)}</td>
             </tr>
-            <tr className="border-t border-stone-100">
-              <td className="px-3 py-2">Acueducto y alcantarillado</td>
-              <td className="px-3 py-2">{formatMoney(totals.waterAndSewer)}</td>
-              <td className="px-3 py-2">{formatMoney(totals.billWaterAndSewer)}</td>
+            <tr>
+              <td>Otros servicios + AP</td>
+              <td>{formatMoney(totals.otherServicesAp)}</td>
+              <td>{formatMoney(totals.billOtherServicesAp)}</td>
             </tr>
-            <tr className="border-t border-stone-100">
-              <td className="px-3 py-2">Otros servicios + AP</td>
-              <td className="px-3 py-2">{formatMoney(totals.otherServicesAp)}</td>
-              <td className="px-3 py-2">{formatMoney(totals.billOtherServicesAp)}</td>
-            </tr>
-            <tr className="border-t border-stone-100 font-medium">
-              <td className="px-3 py-2">Total</td>
-              <td className="px-3 py-2">{formatMoney(totals.payable)}</td>
-              <td className="px-3 py-2">{formatMoney(totals.billPayable)}</td>
+            <tr className="is-total">
+              <td>Total</td>
+              <td>{formatMoney(totals.payable)}</td>
+              <td>{formatMoney(totals.billPayable)}</td>
             </tr>
           </tbody>
         </table>
@@ -169,9 +161,9 @@ export function SettlementPanel({
 
 function RateRow({ label, value }: { label: string; value: string }) {
   return (
-    <tr className="border-t border-stone-100 first:border-t-0">
-      <th className="px-3 py-2 font-normal text-stone-700">{label}</th>
-      <td className="px-3 py-2">{value}</td>
+    <tr>
+      <th className="plain">{label}</th>
+      <td>{value}</td>
     </tr>
   );
 }

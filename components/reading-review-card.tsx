@@ -7,6 +7,7 @@ import { optimizeMeterPhoto } from "@/lib/images/optimize";
 import { consumptionDisplay, formatNumber, previousReadingDisplay } from "@/lib/format";
 import { IssueList } from "@/components/issue-list";
 import { ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
+import { SubmitButton } from "@/components/submit-button";
 import type { ValidationIssue } from "@/lib/domain/types";
 import type { ReadingStatus } from "@/lib/domain/types";
 
@@ -71,144 +72,133 @@ export function ReadingReviewCard({
   }
 
   return (
-    <section className="space-y-3 rounded border border-stone-200 bg-white p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-medium text-stone-900">
+    <section className="review-card">
+      <div className="review-head flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="section-title text-[1.35rem]">
           {floorName} · {serviceName}
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {status ? <ReadingStatusBadge status={status} /> : <MissingBadge />}
-          <span className="text-xs uppercase tracking-wide text-stone-500">{unit}</span>
+          <span className="kicker">{unit}</span>
         </div>
       </div>
-      <dl className="grid gap-1 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-stone-500">Lectura anterior</dt>
-          <dd>{previousReadingDisplay(previousValue, isOpeningPeriod)}</dd>
-        </div>
-        <div>
-          <dt className="text-stone-500">Lectura actual</dt>
-          <dd>{value === null ? "—" : formatNumber(value)}</dd>
-        </div>
-        <div>
-          <dt className="text-stone-500">Valor enviado por el usuario</dt>
-          <dd>{submittedValue === null ? "—" : formatNumber(submittedValue)}</dd>
-        </div>
-        <div>
-          <dt className="text-stone-500">Consumo</dt>
-          <dd>{consumptionDisplay(consumption, isOpeningPeriod)}</dd>
-        </div>
-      </dl>
-      <IssueList issues={issues} />
-      {rejectionReason ? (
-        <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-          Motivo de rechazo: {rejectionReason}
-        </p>
-      ) : null}
+
       {photoUrl ? (
-        <figure className="space-y-1">
+        <figure className="review-photo">
           {/* URL firmada y privada: next/image no aplica. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photoUrl}
             alt={`Fotografía del contador de ${serviceName} en ${floorName}`}
-            className="max-h-[28rem] w-full rounded border border-stone-200 object-contain bg-stone-50"
           />
-          <figcaption className="text-xs text-stone-500">
-            Compara visualmente la fotografía con la lectura declarada.
-          </figcaption>
+          <figcaption>Compara visualmente la fotografía con la lectura declarada.</figcaption>
         </figure>
       ) : (
-        <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-          No hay fotografía.
-        </p>
+        <p className="review-photo notice notice-error">No hay fotografía.</p>
       )}
 
+      <div className="review-data stack-md">
+        <dl className="review-stats">
+          <div>
+            <dt>Lectura anterior</dt>
+            <dd>{previousReadingDisplay(previousValue, isOpeningPeriod)}</dd>
+          </div>
+          <div>
+            <dt>Lectura actual</dt>
+            <dd>{value === null ? "—" : formatNumber(value)}</dd>
+          </div>
+          <div>
+            <dt>Valor enviado por el usuario</dt>
+            <dd>{submittedValue === null ? "—" : formatNumber(submittedValue)}</dd>
+          </div>
+          <div>
+            <dt>Consumo</dt>
+            <dd>{consumptionDisplay(consumption, isOpeningPeriod)}</dd>
+          </div>
+        </dl>
+        <IssueList issues={issues} />
+        {rejectionReason ? (
+          <p className="notice notice-error">Motivo de rechazo: {rejectionReason}</p>
+        ) : null}
+      </div>
+
       {locked ? (
-        <p className="border-t border-stone-100 pt-3 text-sm text-stone-600">
+        <p className="review-actions muted text-[0.92rem]">
           El período no está abierto. Reábrelo para aprobar o corregir lecturas.
         </p>
       ) : readingId ? (
-        <div className="grid gap-4 border-t border-stone-100 pt-3 lg:grid-cols-2">
-          <ActionForm action={approveReading} className="space-y-3">
+        <div className="review-actions">
+          <ActionForm action={approveReading} className="stack-md">
             <input type="hidden" name="reading_id" value={readingId} />
-            <label className="block text-sm">
-              <span className="mb-1 block text-stone-700">Corregir valor (opcional)</span>
+            <label className="field">
+              <span className="field-label">Corregir valor (opcional)</span>
               <input
                 name="corrected_value"
                 inputMode="decimal"
                 defaultValue={value === null ? "" : String(value)}
-                className="w-full rounded border border-stone-300 px-3 py-2"
+                className="input-control input-figure"
               />
             </label>
             {warningsNeedConfirm ? (
-              <label className="flex items-start gap-2 text-sm">
-                <input type="checkbox" name="confirm_warnings" className="mt-1" />
+              <label className="flex items-start gap-2 text-[0.9rem]">
+                <input type="checkbox" name="confirm_warnings" className="mt-1 accent-forest" />
                 <span>Revisé los avisos y confirmo la aprobación.</span>
               </label>
             ) : null}
-            <button
-              type="submit"
-              className="rounded bg-green-800 px-4 py-2 text-white hover:bg-green-700"
-            >
-              Aprobar
-            </button>
+            <SubmitButton variant="approve">Aprobar</SubmitButton>
           </ActionForm>
-          <ActionForm action={rejectReading} className="space-y-3">
+          <ActionForm action={rejectReading} className="stack-md">
             <input type="hidden" name="reading_id" value={readingId} />
-            <label className="block text-sm">
-              <span className="mb-1 block text-stone-700">Motivo de rechazo o corrección</span>
+            <label className="field">
+              <span className="field-label">Motivo de rechazo o corrección</span>
               <textarea
                 name="rejection_reason"
                 required
                 rows={3}
-                className="w-full rounded border border-stone-300 px-3 py-2"
+                className="input-control"
               />
             </label>
-            <button
-              type="submit"
-              className="rounded bg-red-800 px-4 py-2 text-white hover:bg-red-700"
-            >
-              Rechazar / solicitar corrección
-            </button>
+            <SubmitButton variant="reject">Rechazar / solicitar corrección</SubmitButton>
           </ActionForm>
         </div>
       ) : (
-        <ActionForm action={adminSubmit} className="space-y-3 border-t border-stone-100 pt-3">
+        <ActionForm action={adminSubmit} className="review-actions stack-md">
           <input type="hidden" name="period_id" value={periodId} />
           <input type="hidden" name="floor_id" value={floorId} />
           <input type="hidden" name="service_id" value={serviceId} />
-          <p className="text-sm text-stone-600">Registrar lectura desde administración</p>
-          <label className="block text-sm">
-            <span className="mb-1 block text-stone-700">Lectura actual</span>
+          <p className="muted text-[0.92rem]">Registrar lectura desde administración</p>
+          <label className="field">
+            <span className="field-label">Lectura actual</span>
             <input
               name="value"
               inputMode="decimal"
               required
-              className="w-full rounded border border-stone-300 px-3 py-2"
+              className="input-control input-figure"
             />
           </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-stone-700">Fecha de lectura</span>
+          <label className="field">
+            <span className="field-label">Fecha de lectura</span>
             <input
               name="reading_date"
               type="date"
               required
               defaultValue={readingDate}
-              className="w-full rounded border border-stone-300 px-3 py-2"
+              className="input-control"
             />
           </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-stone-700">Fotografía</span>
-            <input name="photo" type="file" accept="image/*" required className="block w-full text-sm" />
+          <label className="field">
+            <span className="field-label">Fotografía</span>
+            <input
+              name="photo"
+              type="file"
+              accept="image/*"
+              required
+              className="input-control file-control"
+            />
           </label>
-          <button
-            type="submit"
-            disabled={pendingPhoto}
-            className="rounded bg-stone-900 px-4 py-2 text-white hover:bg-stone-800"
-          >
-            {pendingPhoto ? "Preparando imagen…" : "Registrar"}
-          </button>
+          <SubmitButton busy={pendingPhoto} pendingLabel="Preparando imagen…">
+            Registrar
+          </SubmitButton>
         </ActionForm>
       )}
     </section>

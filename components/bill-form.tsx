@@ -9,6 +9,7 @@ import {
   billPdfPath,
 } from "@/lib/storage/paths";
 import { billChargeFieldName, billChargeFields } from "@/lib/domain/bill-charges";
+import { SubmitButton } from "@/components/submit-button";
 
 type ChargeField = {
   code: string;
@@ -67,15 +68,15 @@ export function BillForm({
   }
 
   return (
-    <ActionForm action={action} className="space-y-4">
+    <ActionForm action={action} className="stack-lg">
       {locked ? (
-        <p className="rounded border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700">
+        <p className="notice">
           El período está cerrado. Reábrelo para cambiar el recibo.
         </p>
       ) : null}
       <input type="hidden" name="period_id" value={periodId} />
-      <label className="block text-sm">
-        <span className="mb-1 block text-stone-700">
+      <label className="field">
+        <span className="field-label">
           PDF del recibo {hasPdf ? "(opcional si ya está cargado)" : ""}
         </span>
         <input
@@ -84,15 +85,15 @@ export function BillForm({
           accept="application/pdf"
           required={!hasPdf && !locked}
           disabled={locked}
-          className="block w-full text-sm"
+          className="input-control file-control"
         />
       </label>
-      <p className="text-sm text-stone-600">
+      <p className="muted text-[0.92rem]">
         Copia los consumos y los importes en pesos tal como aparecen en el recibo. Cero es
         válido si ese renglón no cobra. El mínimo vital y el ajuste al peso pueden ser
         negativos.
       </p>
-      <div className="space-y-4">
+      <div className="stack-lg">
         {services.map((service) => {
           const fields =
             service.charges && service.charges.length > 0
@@ -102,15 +103,10 @@ export function BillForm({
                   value: "",
                 }));
           return (
-            <fieldset
-              key={service.code}
-              className="space-y-3 rounded border border-stone-200 bg-stone-50 p-4"
-            >
-              <legend className="px-1 text-sm font-medium text-stone-900">
-                {service.name}
-              </legend>
-              <label className="block text-sm">
-                <span className="mb-1 block text-stone-700">
+            <fieldset key={service.code} className="fieldset-block">
+              <legend>{service.name}</legend>
+              <label className="field">
+                <span className="field-label">
                   Total {service.name} ({service.unit})
                 </span>
                 <input
@@ -119,21 +115,21 @@ export function BillForm({
                   defaultValue={service.value}
                   required
                   disabled={locked}
-                  className="w-full rounded border border-stone-300 bg-white px-3 py-2"
+                  className="input-control figure"
                 />
               </label>
-              <p className="text-sm font-medium text-stone-800">Importes en pesos</p>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <p className="field-label mt-5 mb-2">Importes en pesos</p>
+              <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
                 {fields.map((field) => (
-                  <label key={field.code} className="block text-sm">
-                    <span className="mb-1 block text-stone-700">{field.label}</span>
+                  <label key={field.code} className="field">
+                    <span className="field-label">{field.label}</span>
                     <input
                       name={billChargeFieldName(service.code, field.code)}
                       inputMode="decimal"
                       defaultValue={field.value}
                       required
                       disabled={locked}
-                      className="w-full rounded border border-stone-300 bg-white px-3 py-2"
+                      className="input-control figure"
                     />
                   </label>
                 ))}
@@ -142,12 +138,10 @@ export function BillForm({
           );
         })}
       </div>
-      <fieldset className="space-y-3 rounded border border-stone-200 bg-stone-50 p-4">
-        <legend className="px-1 text-sm font-medium text-stone-900">
-          Toda la vivienda
-        </legend>
-        <label className="block text-sm">
-          <span className="mb-1 block text-stone-700">
+      <fieldset className="fieldset-block">
+        <legend>Toda la vivienda</legend>
+        <label className="field">
+          <span className="field-label">
             Subtotal otros servicios + AP (alumbrado público)
           </span>
           <input
@@ -156,30 +150,25 @@ export function BillForm({
             defaultValue={otherServicesApSubtotal}
             required
             disabled={locked}
-            className="w-full rounded border border-stone-300 bg-white px-3 py-2"
+            className="input-control figure"
           />
         </label>
-        <p className="text-xs text-stone-500">
+        <p className="muted mt-2 text-[0.78rem]">
           Un solo valor del recibo para toda la casa. AP significa alumbrado público.
         </p>
       </fieldset>
-      <label className="block text-sm">
-        <span className="mb-1 block text-stone-700">Notas</span>
+      <label className="field">
+        <span className="field-label">Notas</span>
         <textarea
           name="notes"
           defaultValue={notes}
           rows={2}
           disabled={locked}
-          className="w-full rounded border border-stone-300 px-3 py-2"
+          className="input-control"
         />
       </label>
       {locked ? null : (
-        <button
-          type="submit"
-          className="rounded bg-stone-900 px-4 py-2 text-white hover:bg-stone-800"
-        >
-          Guardar recibo
-        </button>
+        <SubmitButton pendingLabel="Guardando…">Guardar recibo</SubmitButton>
       )}
     </ActionForm>
   );
