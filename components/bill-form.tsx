@@ -128,7 +128,7 @@ export function BillForm({
                   defaultValue={service.value}
                   required
                   disabled={locked}
-                  className="input-control figure"
+                  className="input-control input-figure"
                 />
               </label>
               <p className="field-label mt-5 mb-2">Importes en pesos</p>
@@ -142,7 +142,7 @@ export function BillForm({
                       defaultValue={field.value}
                       required
                       disabled={locked}
-                      className="input-control figure"
+                      className="input-control input-figure"
                     />
                   </label>
                 ))}
@@ -166,7 +166,7 @@ export function BillForm({
             defaultValue={otherServicesApSubtotal}
             required
             disabled={locked}
-            className="input-control figure"
+            className="input-control input-figure"
           />
         </label>
       </fieldset>
