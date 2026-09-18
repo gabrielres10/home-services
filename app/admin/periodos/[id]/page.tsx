@@ -116,6 +116,7 @@ export default async function PeriodDetailPage({
               periodId={period.id}
               notes={bill?.notes ?? ""}
               hasPdf={Boolean(bill?.pdf_storage_path)}
+              existingPdfUrl={pdfUrl}
               otherServicesApSubtotal={numericOrEmpty(bill?.other_services_ap_subtotal ?? null)}
               locked={period.status === "closed"}
               services={catalog.services.map((service) => ({
@@ -132,12 +133,6 @@ export default async function PeriodDetailPage({
                 })),
               }))}
             />
-            {pdfUrl ? (
-              <div>
-                <p className="kicker section-kicker">Así se ve el PDF cargado</p>
-                <iframe title="Recibo PDF" src={pdfUrl} className="doc-frame mt-3" />
-              </div>
-            ) : null}
           </WorkPanel>
 
           <WorkPanel

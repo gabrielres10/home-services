@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { saveBill } from "@/app/actions/bills";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -83,6 +83,7 @@ export function BillForm({
   services,
   notes,
   hasPdf,
+  existingPdfUrl = null,
   otherServicesApSubtotal,
   locked = false,
 }: {
@@ -90,15 +91,26 @@ export function BillForm({
   services: ServiceField[];
   notes: string;
   hasPdf: boolean;
+  existingPdfUrl?: string | null;
   otherServicesApSubtotal: string;
   locked?: boolean;
 }) {
   const [filled, setFilled] = useState<FilledBill | null>(null);
   const [fieldKey, setFieldKey] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [extractStatus, setExtractStatus] = useState<"idle" | "reading" | "ok" | "error">(
     "idle",
   );
   const [extractMessage, setExtractMessage] = useState<string | null>(null);
+  const displayPdf = previewUrl ?? existingPdfUrl;
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   function applyDraft(draft: ExtractedBillDraft) {
     const count = countExtractedValues(draft);
@@ -142,8 +154,23 @@ export function BillForm({
 
   async function onPdfChosen(file: File | null) {
     if (!file || locked) {
+      setPreviewUrl(null);
       return;
     }
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setPreviewUrl(null);
+      setExtractStatus("error");
+      setExtractMessage("El recibo debe ser un archivo PDF.");
+      return;
+    }
+    if (file.size > MAX_BILL_PDF_BYTES) {
+      setPreviewUrl(null);
+      setExtractStatus("error");
+      setExtractMessage("El PDF no puede superar 10 MB.");
+      return;
+    }
+
+    setPreviewUrl(URL.createObjectURL(file));
     setExtractStatus("reading");
     setExtractMessage("Leyendo la página 1 del recibo…");
     try {
@@ -158,7 +185,8 @@ export function BillForm({
   }
 
   return (
-    <ActionForm action={action} className="stack-lg">
+    <>
+      <ActionForm action={action} className="stack-lg">
       {locked ? (
         <p className="notice">
           El período está cerrado. Reábrelo para cambiar el recibo.
@@ -299,5 +327,12 @@ export function BillForm({
         </div>
       )}
     </ActionForm>
+      {displayPdf ? (
+        <div>
+          <p className="kicker section-kicker">Así se ve el PDF cargado</p>
+          <iframe title="Recibo PDF" src={displayPdf} className="doc-frame mt-3" />
+        </div>
+      ) : null}
+    </>
   );
 }
