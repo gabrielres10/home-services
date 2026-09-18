@@ -7,6 +7,7 @@ import { optimizeMeterPhoto } from "@/lib/images/optimize";
 import { previousReadingDisplay } from "@/lib/format";
 import type { ValidationIssue } from "@/lib/domain/types";
 import { IssueList } from "@/components/issue-list";
+import { PhotoPicker } from "@/components/photo-picker";
 import { SubmitButton } from "@/components/submit-button";
 
 export function ReadingForm({
@@ -93,19 +94,10 @@ export function ReadingForm({
             className="input-control"
           />
         </label>
-        <div className="file-drop file-drop-compact">
-          <p className="file-drop-title">Fotografía del contador</p>
-          <p className="muted text-[0.86rem]">
-            Pulsa el botón verde y elige la foto que tomaste al medidor.
-          </p>
-          <input
-            name="photo"
-            type="file"
-            accept="image/*"
-            required={photoRequired}
-            className="input-control file-control"
-          />
-        </div>
+        <PhotoPicker
+          required={photoRequired}
+          alt={`Vista previa del contador de ${serviceName} en ${floorName}`}
+        />
         <SubmitButton busy={pendingPhoto} pendingLabel="Preparando imagen…">
           Enviar lectura
         </SubmitButton>

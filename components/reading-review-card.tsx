@@ -7,6 +7,7 @@ import { optimizeMeterPhoto } from "@/lib/images/optimize";
 import { consumptionDisplay, formatNumber, previousReadingDisplay } from "@/lib/format";
 import { IssueList } from "@/components/issue-list";
 import { ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
+import { PhotoPicker } from "@/components/photo-picker";
 import { SubmitButton } from "@/components/submit-button";
 import type { ValidationIssue } from "@/lib/domain/types";
 import type { ReadingStatus } from "@/lib/domain/types";
@@ -186,19 +187,10 @@ export function ReadingReviewCard({
               className="input-control"
             />
           </label>
-          <div className="file-drop file-drop-compact">
-            <p className="file-drop-title">Foto del contador</p>
-            <p className="muted text-[0.86rem]">
-              Pulsa el botón verde y elige la fotografía del medidor.
-            </p>
-            <input
-              name="photo"
-              type="file"
-              accept="image/*"
-              required
-              className="input-control file-control"
-            />
-          </div>
+          <PhotoPicker
+            title="Foto del contador"
+            alt={`Vista previa del contador de ${serviceName} en ${floorName}`}
+          />
           <SubmitButton busy={pendingPhoto} pendingLabel="Preparando imagen…">
             Registrar
           </SubmitButton>
