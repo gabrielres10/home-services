@@ -73,7 +73,7 @@ function draftToFilled(draft: ExtractedBillDraft, services: ServiceField[]): Fil
 
 function extractStatusMessage(count: number): string {
   if (count === 0) {
-    return "Leí el texto, pero no reconocí renglones. Completa los números a mano o pega el texto de la página 1.";
+    return "Leí el PDF, pero no reconocí los renglones. Completa los números a mano.";
   }
   return `Rellené ${count} campo${count === 1 ? "" : "s"} con lo que pude leer. Completa los vacíos, revisa y pulsa Guardar recibo.`;
 }
@@ -99,14 +99,9 @@ export function BillForm({
     "idle",
   );
   const [extractMessage, setExtractMessage] = useState<string | null>(null);
-  const [rawText, setRawText] = useState<string>("");
-  const [pasteText, setPasteText] = useState("");
 
   function applyDraft(draft: ExtractedBillDraft) {
     const count = countExtractedValues(draft);
-    if (draft.rawText) {
-      setRawText(draft.rawText);
-    }
     if (count === 0) {
       setExtractStatus("error");
       setExtractMessage(extractStatusMessage(0));
@@ -121,7 +116,6 @@ export function BillForm({
   async function action(formData: FormData) {
     const pdf = formData.get("pdf");
     formData.delete("pdf");
-    formData.delete("pdf_text_paste");
 
     if (pdf instanceof File && pdf.size > 0) {
       if (pdf.type !== "application/pdf" && !pdf.name.toLowerCase().endsWith(".pdf")) {
@@ -154,23 +148,13 @@ export function BillForm({
     setExtractMessage("Leyendo la página 1 del recibo…");
     try {
       const text = await readPdfPageOneText(file);
-      setRawText(text);
       applyDraft(parseEmcaliBillText(text));
     } catch (error) {
       setExtractStatus("error");
       setExtractMessage(
-        `No pude leer el PDF (${describeExtractError(error)}). Pega abajo el texto de la página 1 o copia los números a mano.`,
+        `No pude leer el PDF (${describeExtractError(error)}). Completa los números a mano.`,
       );
     }
-  }
-
-  function onPasteText() {
-    const text = pasteText.trim();
-    if (!text || locked) {
-      return;
-    }
-    setRawText(text);
-    applyDraft(parseEmcaliBillText(text));
   }
 
   return (
@@ -220,34 +204,6 @@ export function BillForm({
               : "Todavía no hay PDF. Sin este archivo no se puede guardar el recibo."}
           </p>
         )}
-        {locked ? null : (
-          <label className="field">
-            <span className="field-label">Pegar texto de la página 1</span>
-            <textarea
-              name="pdf_text_paste"
-              value={pasteText}
-              onChange={(event) => setPasteText(event.target.value)}
-              rows={4}
-              disabled={extractStatus === "reading"}
-              className="input-control"
-              placeholder="Si el archivo no se lee: en el PDF, página 1, Ctrl+A, copiar y pegar aquí."
-            />
-            <button
-              type="button"
-              className="btn btn-ghost mt-2"
-              disabled={extractStatus === "reading" || pasteText.trim() === ""}
-              onClick={onPasteText}
-            >
-              Rellenar desde este texto
-            </button>
-          </label>
-        )}
-        {rawText ? (
-          <details className="extract-dump">
-            <summary>Texto leído (cópialo si algo falla)</summary>
-            <pre>{rawText}</pre>
-          </details>
-        ) : null}
       </div>
       <p className="muted text-[0.92rem]">
         Si un renglón no cobra, deja 0. El mínimo vital y el ajuste al peso pueden

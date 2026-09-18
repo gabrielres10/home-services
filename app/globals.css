@@ -1481,30 +1481,6 @@ details[open] > .archive-toggle::before {
   font-size: 1.05rem;
 }
 
-.extract-dump {
-  margin: 0.15rem 0 0;
-}
-
-.extract-dump summary {
-  cursor: pointer;
-  color: var(--mute);
-  font-size: 0.82rem;
-  font-weight: 650;
-}
-
-.extract-dump pre {
-  max-height: 12rem;
-  margin: 0.45rem 0 0;
-  overflow: auto;
-  padding: 0.55rem 0.65rem;
-  border: 1px solid var(--line);
-  background: var(--raised);
-  color: var(--ink);
-  font-size: 0.75rem;
-  line-height: 1.35;
-  white-space: pre-wrap;
-}
-
 .fieldset-panel {
   min-width: 0;
   padding: 1rem 1rem 1.15rem;

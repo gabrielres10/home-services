@@ -356,6 +356,5 @@ export function parseEmcaliBillText(text: string): ExtractedBillDraft {
     totals,
     charges,
     otherServicesApSubtotal: otherServicesAp,
-    rawText: text,
   };
 }
