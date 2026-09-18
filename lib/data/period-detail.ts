@@ -20,6 +20,7 @@ import {
 import { toNumber } from "@/lib/format";
 import type { ValidationIssue } from "@/lib/domain/types";
 import { billChargeValuesFromRows } from "@/lib/domain/bill-charges";
+import { resolveSettlement } from "@/lib/domain/settlement";
 
 export async function signedUrl(bucket: string, path: string | null) {
   if (!path) {
@@ -254,6 +255,16 @@ export async function loadPeriodDetail(periodId: string) {
     isOpeningPeriod,
   });
 
+  const settlementResolution = resolveSettlement({
+    periodId: period.id,
+    periodLabel: period.label,
+    isOpeningPeriod,
+    floors: catalog.floors,
+    lines: consumptions.lines,
+    charges: chargeValues,
+    otherServicesAp: toNumber(bill?.other_services_ap_subtotal ?? null),
+  });
+
   return {
     period,
     catalog,
@@ -268,6 +279,8 @@ export async function loadPeriodDetail(periodId: string) {
     readiness,
     isOpeningPeriod,
     statusLabel: periodStatusLabel(period.status),
+    settlement: settlementResolution.result,
+    settlementUnavailableMessage: settlementResolution.unavailableMessage,
   };
 }
 

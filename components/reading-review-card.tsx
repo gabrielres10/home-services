@@ -29,6 +29,7 @@ export function ReadingReviewCard({
   issues,
   warningsNeedConfirm,
   isOpeningPeriod = false,
+  locked = false,
 }: {
   periodId: string;
   floorId: string;
@@ -48,6 +49,7 @@ export function ReadingReviewCard({
   issues: ValidationIssue[];
   warningsNeedConfirm: boolean;
   isOpeningPeriod?: boolean;
+  locked?: boolean;
 }) {
   const [pendingPhoto, setPendingPhoto] = useState(false);
 
@@ -122,7 +124,11 @@ export function ReadingReviewCard({
         </p>
       )}
 
-      {readingId ? (
+      {locked ? (
+        <p className="border-t border-stone-100 pt-3 text-sm text-stone-600">
+          El período no está abierto. Reábrelo para aprobar o corregir lecturas.
+        </p>
+      ) : readingId ? (
         <div className="grid gap-4 border-t border-stone-100 pt-3 lg:grid-cols-2">
           <ActionForm action={approveReading} className="space-y-3">
             <input type="hidden" name="reading_id" value={readingId} />

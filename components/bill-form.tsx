@@ -30,12 +30,14 @@ export function BillForm({
   notes,
   hasPdf,
   otherServicesApSubtotal,
+  locked = false,
 }: {
   periodId: string;
   services: ServiceField[];
   notes: string;
   hasPdf: boolean;
   otherServicesApSubtotal: string;
+  locked?: boolean;
 }) {
   async function action(formData: FormData) {
     const pdf = formData.get("pdf");
@@ -66,6 +68,11 @@ export function BillForm({
 
   return (
     <ActionForm action={action} className="space-y-4">
+      {locked ? (
+        <p className="rounded border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700">
+          El período está cerrado. Reábrelo para cambiar el recibo.
+        </p>
+      ) : null}
       <input type="hidden" name="period_id" value={periodId} />
       <label className="block text-sm">
         <span className="mb-1 block text-stone-700">
@@ -75,7 +82,8 @@ export function BillForm({
           name="pdf"
           type="file"
           accept="application/pdf"
-          required={!hasPdf}
+          required={!hasPdf && !locked}
+          disabled={locked}
           className="block w-full text-sm"
         />
       </label>
@@ -110,6 +118,7 @@ export function BillForm({
                   inputMode="decimal"
                   defaultValue={service.value}
                   required
+                  disabled={locked}
                   className="w-full rounded border border-stone-300 bg-white px-3 py-2"
                 />
               </label>
@@ -123,6 +132,7 @@ export function BillForm({
                       inputMode="decimal"
                       defaultValue={field.value}
                       required
+                      disabled={locked}
                       className="w-full rounded border border-stone-300 bg-white px-3 py-2"
                     />
                   </label>
@@ -145,6 +155,7 @@ export function BillForm({
             inputMode="decimal"
             defaultValue={otherServicesApSubtotal}
             required
+            disabled={locked}
             className="w-full rounded border border-stone-300 bg-white px-3 py-2"
           />
         </label>
@@ -158,15 +169,18 @@ export function BillForm({
           name="notes"
           defaultValue={notes}
           rows={2}
+          disabled={locked}
           className="w-full rounded border border-stone-300 px-3 py-2"
         />
       </label>
-      <button
-        type="submit"
-        className="rounded bg-stone-900 px-4 py-2 text-white hover:bg-stone-800"
-      >
-        Guardar recibo
-      </button>
+      {locked ? null : (
+        <button
+          type="submit"
+          className="rounded bg-stone-900 px-4 py-2 text-white hover:bg-stone-800"
+        >
+          Guardar recibo
+        </button>
+      )}
     </ActionForm>
   );
 }

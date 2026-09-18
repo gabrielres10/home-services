@@ -244,6 +244,9 @@ export async function approveReading(formData: FormData): Promise<{ error: strin
   if (!period) {
     return { error: "La lectura no tiene período." };
   }
+  if (!canSubmitInPeriod(period.status)) {
+    return { error: "El período no está abierto. Reábrelo para revisar lecturas." };
+  }
 
   if (!canCorrectReading(admin.role)) {
     return { error: "No autorizado." };
@@ -337,6 +340,18 @@ export async function rejectReading(formData: FormData): Promise<{ error: string
 
   if (!reading) {
     return { error: "No se encontró la lectura." };
+  }
+
+  const { data: period } = await supabase
+    .from("billing_periods")
+    .select("status")
+    .eq("id", reading.period_id)
+    .maybeSingle();
+  if (!period) {
+    return { error: "La lectura no tiene período." };
+  }
+  if (!canSubmitInPeriod(period.status)) {
+    return { error: "El período no está abierto. Reábrelo para revisar lecturas." };
   }
 
   const { error } = await supabase

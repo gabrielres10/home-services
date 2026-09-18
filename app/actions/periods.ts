@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/current-user";
 import { periodLabelFromDates } from "@/lib/domain/period-label";
-import { evaluatePeriodReadiness } from "@/lib/domain/period-status";
+import { evaluatePeriodReadiness, nextReopenStatus } from "@/lib/domain/period-status";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loadCatalog, loadPreviousBySlots, hasAnyEarlierPeriod } from "@/lib/data/catalog";
+import { loadPeriodDetail } from "@/lib/data/period-detail";
 import { buildPeriodConsumptions } from "@/lib/domain/period-consumption";
 import { billChargeValuesFromRows } from "@/lib/domain/bill-charges";
 import { validateBill } from "@/lib/domain/validation";
@@ -154,14 +155,61 @@ export async function markPeriodReady(periodId: string): Promise<{ error: string
   revalidatePath(`/admin/periodos/${periodId}`);
 }
 
-export async function reopenPeriod(periodId: string): Promise<{ error: string } | void> {
+export async function closePeriod(periodId: string): Promise<{ error: string } | void> {
   await requireAdmin();
+  const detail = await loadPeriodDetail(periodId);
+  if (!detail) {
+    return { error: "No se encontró el período." };
+  }
+  if (detail.period.status !== "ready") {
+    return { error: "Solo un período listo puede cerrarse." };
+  }
+  if (!detail.isOpeningPeriod && !detail.settlement) {
+    return {
+      error:
+        detail.settlementUnavailableMessage ??
+        "No se puede liquidar este período. Completa el recibo y los consumos.",
+    };
+  }
+
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase
     .from("billing_periods")
-    .update({ status: "open" })
+    .update({ status: "closed" })
     .eq("id", periodId)
     .eq("status", "ready");
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/periodos/${periodId}`);
+}
+
+export async function reopenPeriod(periodId: string): Promise<{ error: string } | void> {
+  await requireAdmin();
+  const supabase = await createServerSupabaseClient();
+  const { data: period, error: periodError } = await supabase
+    .from("billing_periods")
+    .select("status")
+    .eq("id", periodId)
+    .maybeSingle();
+
+  if (periodError || !period) {
+    return { error: "No se encontró el período." };
+  }
+
+  const nextStatus = nextReopenStatus(period.status);
+  if (!nextStatus) {
+    return { error: "Este período no se puede reabrir." };
+  }
+
+  const { error } = await supabase
+    .from("billing_periods")
+    .update({ status: nextStatus })
+    .eq("id", periodId)
+    .eq("status", period.status);
 
   if (error) {
     return { error: error.message };

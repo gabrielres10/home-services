@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  canClosePeriod,
   canMarkPeriodReady,
   canSubmitInPeriod,
   evaluatePeriodReadiness,
+  nextReopenStatus,
   periodStatusLabel,
 } from "@/lib/domain/period-status";
 
@@ -58,5 +60,26 @@ describe("period status", () => {
     });
     expect(ready.ready).toBe(true);
     expect(canMarkPeriodReady("open", ready)).toBe(true);
+  });
+
+  it("cierra un período listo con liquidación, o el inicial sin recibo", () => {
+    expect(
+      canClosePeriod({ status: "ready", isOpeningPeriod: false, hasSettlement: true }),
+    ).toBe(true);
+    expect(
+      canClosePeriod({ status: "ready", isOpeningPeriod: true, hasSettlement: false }),
+    ).toBe(true);
+    expect(
+      canClosePeriod({ status: "ready", isOpeningPeriod: false, hasSettlement: false }),
+    ).toBe(false);
+    expect(
+      canClosePeriod({ status: "open", isOpeningPeriod: false, hasSettlement: true }),
+    ).toBe(false);
+  });
+
+  it("reabre cerrado a listo y listo a abierto", () => {
+    expect(nextReopenStatus("closed")).toBe("ready");
+    expect(nextReopenStatus("ready")).toBe("open");
+    expect(nextReopenStatus("open")).toBeNull();
   });
 });

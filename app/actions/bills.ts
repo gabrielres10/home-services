@@ -23,6 +23,19 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
     return { error: "Falta el período." };
   }
 
+  const supabase = await createServerSupabaseClient();
+  const { data: period } = await supabase
+    .from("billing_periods")
+    .select("status")
+    .eq("id", periodId)
+    .maybeSingle();
+  if (!period) {
+    return { error: "No se encontró el período." };
+  }
+  if (period.status === "closed") {
+    return { error: "El período está cerrado. Reábrelo para cambiar el recibo." };
+  }
+
   const catalog = await loadCatalog();
   const manualTotals = catalog.services.map((service) => {
     const parsed = parseReadingValue(String(formData.get(`total_${service.code}`) ?? ""));
@@ -66,7 +79,6 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
     charges: manualCharges,
     otherServicesApSubtotal: otherServicesApParsed.ok ? otherServicesApParsed.value : null,
   });
-  const supabase = await createServerSupabaseClient();
 
   const { data: existing } = await supabase
     .from("bills")

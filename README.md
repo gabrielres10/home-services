@@ -1,6 +1,6 @@
 # Servicios de la vivienda
 
-Aplicación web para recopilar, validar y organizar los recibos y las lecturas de servicios públicos de una vivienda de tres pisos. La liquidación (cuánto paga cada persona) **no está implementada todavía**; el código deja un módulo `CalculationEngine` listo para incorporar las fórmulas de Excel más adelante.
+Aplicación web para recopilar, validar y liquidar los recibos y las lecturas de servicios públicos de una vivienda de tres pisos. La liquidación sigue `docs/procedimiento-liquidacion.md` y corrige las fórmulas estáticas del Excel (cupo no usado, división entre cero, `n` fijo).
 
 Prioridad: corrección, trazabilidad y simplicidad. Pensada para uso familiar, con despliegue en Vercel y backend en Supabase.
 
@@ -16,6 +16,7 @@ Como administrador puedes:
 6. Obtener el consumo del Piso 3 por diferencia.
 7. Copiar el consumo de alcantarillado desde el de agua.
 8. Consultar períodos anteriores.
+9. Ver cuánto paga cada piso y cerrar el período.
 
 Como usuario de un piso con contador (Piso 1 o Piso 2) puedes:
 
@@ -36,7 +37,7 @@ Autenticación (Supabase Auth)
     → Gestión de lecturas + fotos
     → Validación (lib/domain)
     → Cálculo de consumos (lib/domain)
-    → Liquidación futura (CalculationEngine)
+    → Liquidación (CalculationEngine en lib/domain/settlement.ts)
 ```
 
 La UI no contiene las reglas de cálculo. Esas reglas viven en `lib/domain/` y se testean con Vitest.
@@ -274,7 +275,7 @@ No hace falta encadenar períodos hacia atrás de forma indefinida.
 3. Los usuarios de Piso 1 y 2 envían lectura + foto.
 4. El administrador compara foto y valor. Puede corregir (queda `submitted_value` original, `value` vigente y una fila de auditoría), aprobar o rechazar con motivo.
 5. Cuando las 4 lecturas están aprobadas, hay lectura anterior (salvo en el período inicial), los consumos del Piso 3 no son negativos y el recibo está completo, el administrador marca el período **listo**.
-6. El botón **Preparar liquidación** aparece, pero las fórmulas aún no están definidas.
+6. En un período de facturación se ve la liquidación por piso (energía, acueducto y alcantarillado, otros servicios + AP). El administrador puede **cerrar** el período. Cerrar bloquea cambios al recibo y a las lecturas; reabrir pasa de cerrado a listo y de listo a abierto.
 
 Avisos visibles (no se ocultan):
 
@@ -311,11 +312,9 @@ tests/               Vitest
 
 ## Lo que no está en esta versión (a propósito)
 
-- Fórmulas de cuánto paga cada persona
 - Extracción automática del PDF
 - OCR o visión sobre las fotografías
 - Panel de alta de usuarios
 - Gráficos
 
-Los importes en pesos del recibo sí se capturan. Todavía no se usan para calcular cuánto paga cada piso.
-Cuando se especifiquen las reglas de Excel, el punto de entrada es `lib/domain/settlement.ts`.
+La liquidación vive en `lib/domain/settlement.ts` y sigue `docs/procedimiento-liquidacion.md`.

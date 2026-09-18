@@ -101,3 +101,24 @@ export function canMarkPeriodReady(
 ): boolean {
   return current === "open" && readiness.ready;
 }
+
+export function canClosePeriod(input: {
+  status: PeriodStatus;
+  isOpeningPeriod: boolean;
+  hasSettlement: boolean;
+}): boolean {
+  if (input.status !== "ready") {
+    return false;
+  }
+  return input.isOpeningPeriod || input.hasSettlement;
+}
+
+export function nextReopenStatus(status: PeriodStatus): PeriodStatus | null {
+  if (status === "closed") {
+    return "ready";
+  }
+  if (status === "ready") {
+    return "open";
+  }
+  return null;
+}

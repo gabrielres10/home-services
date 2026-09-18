@@ -6,8 +6,10 @@ import { IssueList } from "@/components/issue-list";
 import { PeriodActions } from "@/components/period-actions";
 import { PeriodStatusBadge, ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import { ReadingReviewCard } from "@/components/reading-review-card";
+import { SettlementPanel } from "@/components/settlement-panel";
 import { loadPeriodDetail, numericOrEmpty } from "@/lib/data/period-detail";
 import { billChargeFields, billChargeLookup } from "@/lib/domain/bill-charges";
+import { canClosePeriod } from "@/lib/domain/period-status";
 import { consumptionDisplay, formatDate, formatDateTime, formatMoney, formatNumber, previousReadingDisplay } from "@/lib/format";
 
 export default async function PeriodDetailPage({
@@ -36,10 +38,18 @@ export default async function PeriodDetailPage({
     readiness,
     isOpeningPeriod,
     statusLabel,
+    settlement,
+    settlementUnavailableMessage,
   } = detail;
 
   const allApproved = counts.approvedCount === counts.expectedCount && counts.missingCount === 0;
   const billComplete = billIssues.filter((issue) => issue.severity === "error").length === 0;
+  const periodLocked = period.status !== "open";
+  const canClose = canClosePeriod({
+    status: period.status,
+    isOpeningPeriod,
+    hasSettlement: Boolean(settlement),
+  });
 
   return (
     <>
@@ -75,6 +85,11 @@ export default async function PeriodDetailPage({
             ) : (
               <li>Consumos pendientes o con error</li>
             )}
+            {isOpeningPeriod ? null : settlement ? (
+              <li>✓ Liquidación calculada</li>
+            ) : (
+              <li>Liquidación pendiente</li>
+            )}
           </ul>
           {isOpeningPeriod ? (
             <p className="mt-4 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
@@ -100,6 +115,7 @@ export default async function PeriodDetailPage({
             notes={bill?.notes ?? ""}
             hasPdf={Boolean(bill?.pdf_storage_path)}
             otherServicesApSubtotal={numericOrEmpty(bill?.other_services_ap_subtotal ?? null)}
+            locked={period.status === "closed"}
             services={catalog.services.map((service) => ({
               code: service.code,
               name: service.name,
@@ -227,6 +243,7 @@ export default async function PeriodDetailPage({
                 issues={card.issues}
                 warningsNeedConfirm={card.warningsNeedConfirm}
                 isOpeningPeriod={isOpeningPeriod}
+                locked={periodLocked}
               />
               {card.audits.length > 0 ? (
                 <details className="rounded border border-stone-200 bg-white px-4 py-2 text-sm">
@@ -286,6 +303,12 @@ export default async function PeriodDetailPage({
           />
         </section>
 
+        <SettlementPanel
+          settlement={settlement}
+          unavailableMessage={settlementUnavailableMessage}
+          isOpeningPeriod={isOpeningPeriod}
+        />
+
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Estado del período</h2>
           <IssueList issues={readiness.blockers} />
@@ -293,7 +316,13 @@ export default async function PeriodDetailPage({
             periodId={period.id}
             status={period.status}
             canMarkReady={readiness.ready}
-            settlementMessage="Las fórmulas de liquidación todavía no están definidas. Cuando se especifiquen se incorporarán en CalculationEngine."
+            canClose={canClose}
+            closeBlockedMessage={
+              period.status === "ready" && !canClose
+                ? (settlementUnavailableMessage ??
+                  "La liquidación todavía no se puede calcular.")
+                : null
+            }
           />
         </section>
       </main>

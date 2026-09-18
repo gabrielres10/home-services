@@ -2,7 +2,7 @@
 
 Este archivo es la **fuente de la verdad** del procedimiento de liquidación. Describe cómo se reparte el recibo de la casa entre los pisos. Lo que aquí esté escrito es la regla; el código deberá seguirlo, no al revés.
 
-La casa tiene **3 pisos**. Si en el futuro hubiera otra cantidad, todas las divisiones “entre 3” usan el número de pisos `n`.
+La casa tiene **3 pisos**. Si en el futuro hubiera otra cantidad, todas las divisiones “entre 3” usan el número de pisos `n` (el del catálogo, no un 3 fijo en una fórmula).
 
 - Piso 1 y Piso 2 tienen contador de energía y de agua.
 - Piso 3 no tiene contador: su consumo es el del recibo menos Piso 1 menos Piso 2.
@@ -113,16 +113,16 @@ Total energía
   + Ajuste al peso
 
 Precio unitario con subsidio ($/kWh)
-  = (Consumo básico hasta 173 kWh) / 173
+  = (Consumo básico hasta 173 kWh) / min(Consumo_kWh_del_recibo, 173)
 
 Precio unitario estándar ($/kWh)
-  = (Consumo mayor al básico) / (Consumo_kWh_del_recibo − 173)
+  = (Consumo mayor al básico) / max(0, Consumo_kWh_del_recibo − 173)
 
 Otros energía (valor por piso)
   = (Interés de mora + Otros cobros + Ajuste al peso) / n
 ```
 
-El precio subsidiado es lo que costó cada uno de los 173 kWh baratos de la casa. El precio estándar es lo que costó cada kWh por encima de 173. “Otros” reúne lo que no es consumo y lo parte en partes iguales.
+El precio subsidiado es lo que costó cada kWh barato realmente cobrado (como máximo 173). El precio estándar es lo que costó cada kWh por encima de 173. Si la casa no supera 173 kWh, el denominador del precio estándar es 0: ese precio vale 0 y no se usa. “Otros” reúne lo que no es consumo y lo parte en partes iguales.
 
 ### Acueducto y alcantarillado
 
@@ -135,12 +135,13 @@ Total alcantarillado
 
 Precio unitario hasta 16 ($/m³)
   = (Consumo básico hasta 16 del agua
-     + Consumo básico hasta 16 del alcantarillado) / 16
+     + Consumo básico hasta 16 del alcantarillado)
+    / min(Consumo_m³_del_recibo, 16)
 
 Precio unitario estándar ($/m³)
   = (Consumo mayor al básico del agua
      + Consumo mayor al básico del alcantarillado)
-    / (Consumo_m³_del_recibo − 16)
+    / max(0, Consumo_m³_del_recibo − 16)
 
 Otros acueducto y alcantarillado (valor por piso)
   = (Cargo básico agua
@@ -152,7 +153,7 @@ Otros acueducto y alcantarillado (valor por piso)
      + Mínimo vital agua) / n
 ```
 
-Los dos renglones “consumo básico hasta 16” se suman porque esos 16 m³ de la casa pagaron agua **y** alcantarillado a tarifa baja. Los dos “consumo mayor al básico” se suman por la misma razón, a tarifa plena. Un solo precio por m³ cubre los dos servicios.
+Los dos renglones “consumo básico hasta 16” se suman porque esos m³ de la casa pagaron agua **y** alcantarillado a tarifa baja. Los dos “consumo mayor al básico” se suman por la misma razón, a tarifa plena. Un solo precio por m³ cubre los dos servicios. Si la casa no supera 16 m³, el precio estándar vale 0.
 
 Los totales de energía, agua y alcantarillado no se aplican al piso. Son la suma de control de lo que salió del recibo.
 
@@ -192,16 +193,11 @@ consumo_agua_subsidiado    = min(consumo_m³_del_piso, 16 / n)
 consumo_agua_estándar      = max(0, consumo_m³_del_piso − 16 / n)
 ```
 
+Si un piso **no agota** su cupo y otro sí se pasa, el subsidio sobrante se **reasigna** a quienes tienen excedente, a prorrata de ese excedente. Así se cobran exactamente los kWh o m³ baratos del recibo y la suma de pisos cubre el cobro. Si la casa entera no llega al bloque, no hay excedente que reasignar: cada piso paga todo su consumo a tarifa subsidiada.
+
+Después de ese ajuste (si aplica), las fórmulas de costo usan los kWh o m³ ya repartidos.
+
 ### Costo de energía
-
-```text
-Costo de energía
-  = (consumo igual o menor a 173/n × precio unitario hasta 173)
-  + ((consumo del piso en kWh − 173/n) × precio unitario estándar)
-  + Otros de energía
-```
-
-Operativamente:
 
 ```text
 Costo de energía
@@ -213,15 +209,6 @@ Costo de energía
 “Otros de energía” ya viene por piso del paso 3. No se vuelve a dividir.
 
 ### Costo de agua y alcantarillado
-
-```text
-Costo de agua y alcantarillado
-  = (consumo igual o menor a 16/n × precio unitario hasta 16)
-  + ((consumo del piso en m³ − 16/n) × precio unitario estándar)
-  + Otros de acueducto y alcantarillado
-```
-
-Operativamente:
 
 ```text
 Costo de agua y alcantarillado
@@ -252,7 +239,7 @@ Total a pagar del piso
 
 El Piso 3 usa las mismas tres fórmulas, con su consumo por diferencia.
 
-Quien consuma menos que el tope paga todo su consumo a tarifa subsidiada, cero a tarifa estándar, y sí paga su parte de “Otros” y de AP. Quien se pase del tope paga el cupo a tarifa subsidiada, el resto a tarifa plena, más “Otros” y AP. Nadie resta 173 kWh ni 16 m³ enteros a un piso: el cupo es `173 / n` y `16 / n`.
+Quien consuma menos que el tope paga todo su consumo a tarifa subsidiada, cero a tarifa estándar, y sí paga su parte de “Otros” y de AP. El cupo que no usó pasa a quien sí se pasó. Quien se pase del tope paga su cupo (más el subsidio reasignado, si lo hay) a tarifa subsidiada, el resto a tarifa plena, más “Otros” y AP. Nadie resta 173 kWh ni 16 m³ enteros a un piso: el cupo de partida es `173 / n` y `16 / n`.
 
 ---
 
@@ -317,25 +304,25 @@ Ya está en la aplicación:
 - consumo por diferencia del Piso 3;
 - alcantarillado igual al agua;
 - totales de consumo del recibo (kWh y m³);
-- renglones en pesos del paso 2.
+- renglones en pesos del paso 2;
+- las seis cifras del paso 3, con denominadores según el consumo real de la casa;
+- el paso 4 (costo de energía, agua y alcantarillado, y otros servicios + AP), con `max(0, …)` y reasignación del cupo no usado;
+- el total a pagar de cada piso y el cuadre contra el recibo;
+- cerrar un período listo y reabrirlo (cerrado → listo → abierto).
 
-Todavía no está en la aplicación:
-
-- calcular las seis cifras del paso 3;
-- aplicar el paso 4 (costo de energía, agua y alcantarillado, y otros servicios + AP);
-- mostrar el total a pagar de cada piso.
+La liquidación se calcula en vivo a partir del recibo y los consumos. No se guarda una copia aparte de los importes por piso.
 
 ---
 
 ## Inconsistencias y huecos
 
-Esta sección no cambia la regla de los pasos anteriores. Lista lo que el procedimiento todavía no resuelve, o lo que la fórmula escrita al pie de la letra haría mal.
+Esta sección no cambia la regla de los pasos anteriores. Lista lo que Excel haría mal si se copiara al pie de la letra, y lo que el procedimiento todavía no resuelve. La aplicación **no** copia las flaquezas estáticas de Excel.
 
-1. **`(consumo − 173/n)` y `(consumo − 16/n)` sin piso en cero.** La fórmula de Excel resta el tope al consumo del piso. Si un piso consume **menos** que `173/3` kWh o `16/3` m³, esa resta sale **negativa** y se multiplica por el precio estándar (el caro). El piso pagaría tarifa subsidiada por lo que consumió **y además recibiría un descuento** a tarifa cara por lo que no usó de su cupo. Eso no es justo y no cuadra con “quien no se pasa del cupo no paga excedente”. En el paso 4 la regla operativa es `max(0, consumo − tope)`: debajo del tope, el término estándar es cero. Hay que confirmar que Excel también pone esa resta en cero; si no, Excel está mal en el caso de bajo consumo.
+1. **`(consumo − 173/n)` y `(consumo − 16/n)` sin piso en cero.** En Excel esa resta puede salir negativa y multiplicarse por la tarifa cara: el piso de bajo consumo recibiría un descuento. La regla (y la aplicación) usa `max(0, consumo − tope)`.
 
-2. **Cupo subsidiado que un piso no usa.** Aunque el término estándar se ponga en cero, el cupo que ese piso no usó **no se pasa** a los otros. La casa puede no agotar los 173 kWh ni los 16 m³ del recibo, y la suma de cobros puede no coincidir con el total. Hoy la regla es no reasignar. Falta decidir si más adelante se reasigna el cupo sobrante.
+2. **Cupo subsidiado que un piso no usa.** Excel deja ese cupo sin usar y la suma de cobros no cubre el recibo. La regla (y la aplicación) reasigna el subsidio sobrante a quienes sí se pasaron, a prorrata del excedente, para cobrar el recibo completo.
 
-3. **Período sin excedente.** El precio estándar divide entre `(consumo_recibo − 173)` o `(consumo_recibo − 16)`. Si la casa no supera el bloque, el denominador es cero o negativo. El procedimiento no dice qué hacer. Lo coherente sería no usar precio estándar (tratarlo como 0) y dejar el segundo término de cada piso en cero.
+3. **Período sin excedente.** Excel divide entre `(consumo_recibo − 173)` o `(consumo_recibo − 16)` y revienta si la casa no supera el bloque. La regla (y la aplicación) usa `min(consumo_casa, bloque)` y `max(0, consumo_casa − bloque)` como denominadores. Si el segundo es 0, el precio estándar vale 0.
 
 4. **Tres “Otros” distintos.** “Otros de energía”, “Otros de acueducto y alcantarillado” y “Otros servicios + AP” son tres montos diferentes. Los dos primeros ya vienen divididos entre `n` en el paso 3. El de AP se divide entre `n` en el paso 4. Si alguno se divide dos veces, se cobra de menos. Los nombres en pantalla y en código deben distinguirlos.
 
@@ -347,15 +334,15 @@ Esta sección no cambia la regla de los pasos anteriores. Lista lo que el proced
 
 8. **Bloques 173 y 16.** Están fijos porque así se llaman los renglones del recibo. Si la empresa cambia el tamaño del bloque, las fórmulas actuales dejan de aplicar.
 
-9. **Redondeo.** Partir 173 o 16 entre `n` y multiplicar por precios produce centavos. El recibo trae ajuste al peso (dentro de “Otros” de energía o de agua). No hay una regla extra de cierre para que la suma de los tres totales a pagar dé el peso exacto del recibo.
+9. **Redondeo.** Partir 173 o 16 entre `n` y multiplicar por precios produce centavos. El recibo trae ajuste al peso (dentro de “Otros” de energía o de agua). El último piso absorbe el residuo de las divisiones exactas entre `n` para que la suma cuadre.
 
-10. **Cuadre.** Debería poder comprobarse:
+10. **Cuadre.** Debe poder comprobarse:
 
 ```text
-suma(costo de energía de los 3 pisos)                  ≟ Total energía
-suma(costo de agua y alcantarillado de los 3 pisos)    ≟ Total agua + Total alcantarillado
-suma(costo de otros servicios + AP de los 3 pisos)     ≟ Subtotal otros servicios + AP
-suma(total a pagar de los 3 pisos)                     ≟ esos tres bloques juntos
+suma(costo de energía de los n pisos)                  ≟ Total energía
+suma(costo de agua y alcantarillado de los n pisos)    ≟ Total agua + Total alcantarillado
+suma(costo de otros servicios + AP de los n pisos)     ≟ Subtotal otros servicios + AP
+suma(total a pagar de los n pisos)                     ≟ esos tres bloques juntos
 ```
 
-El procedimiento no obliga todavía ese cuadre como paso formal. El cuadre de energía y agua solo da exacto si los tres pisos superan su tope (punto 2). El cuadre de AP sí da exacto siempre, porque es el mismo valor veces `n`.
+Con la reasignación del cupo y los denominadores reales, el cuadre de energía, agua y AP debe coincidir con el recibo (salvo residuos de punto flotante). La aplicación avisa si no cuadra.
