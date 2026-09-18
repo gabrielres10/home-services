@@ -3,11 +3,12 @@ import { requireAdmin } from "@/lib/auth/current-user";
 import { AppHeader } from "@/components/app-header";
 import { BillForm } from "@/components/bill-form";
 import { IssueList } from "@/components/issue-list";
+import { JumpNav, PeriodGuide, type GuideStep } from "@/components/period-guide";
 import { PeriodActions } from "@/components/period-actions";
 import { PeriodStatusBadge, ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import { ReadingReviewCard } from "@/components/reading-review-card";
 import { SettlementPanel } from "@/components/settlement-panel";
-import { PageMain, SectionHeading } from "@/components/ui";
+import { FloorBand, PageMain, WorkPanel } from "@/components/ui";
 import { loadPeriodDetail, numericOrEmpty } from "@/lib/data/period-detail";
 import { billChargeFields, billChargeLookup } from "@/lib/domain/bill-charges";
 import { canClosePeriod } from "@/lib/domain/period-status";
@@ -15,7 +16,6 @@ import {
   consumptionDisplay,
   formatDate,
   formatDateTime,
-  formatMoney,
   formatNumber,
   previousReadingDisplay,
 } from "@/lib/format";
@@ -59,7 +59,17 @@ export default async function PeriodDetailPage({
     hasSettlement: Boolean(settlement),
   });
   const consumptionsOk =
-    consumptions.allMeteredCalculable && !consumptions.hasNegativeUnmetered;
+    isOpeningPeriod ||
+    (consumptions.allMeteredCalculable && !consumptions.hasNegativeUnmetered);
+  const guide = buildAdminGuide({
+    isOpeningPeriod,
+    billComplete,
+    allApproved,
+    consumptionsOk,
+    hasSettlement: Boolean(settlement),
+    status: period.status,
+    canMarkReady: readiness.ready,
+  });
 
   return (
     <>
@@ -78,58 +88,42 @@ export default async function PeriodDetailPage({
                 {formatDate(period.starts_on)} — {formatDate(period.ends_on)}
               </p>
             </div>
-            <ul className="status-list">
-              <li className={statusClass(billComplete, !billComplete && !isOpeningPeriod)}>
-                Recibo{" "}
-                {billComplete
-                  ? "Completo"
-                  : isOpeningPeriod
-                    ? "Opcional (período inicial)"
-                    : "Incompleto"}
-              </li>
-              <li className={statusClass(allApproved, counts.missingCount > 0)}>
-                Lecturas {counts.approvedCount}/{counts.expectedCount} aprobadas
-              </li>
-              {allApproved ? (
-                <li className="status-item is-done">Todas las lecturas recibidas y aprobadas</li>
-              ) : null}
-              {isOpeningPeriod ? (
-                <li className="status-item is-done">
-                  Período inicial: estas lecturas son la referencia del siguiente período
-                </li>
-              ) : (
-                <li className={statusClass(consumptionsOk, consumptions.hasNegativeUnmetered)}>
-                  {consumptionsOk ? "Consumos calculados" : "Consumos pendientes o con error"}
-                </li>
-              )}
-              {isOpeningPeriod ? null : (
-                <li className={statusClass(Boolean(settlement))}>
-                  {settlement ? "Liquidación calculada" : "Liquidación pendiente"}
-                </li>
-              )}
-            </ul>
+            <JumpNav
+              items={[
+                { href: "#recibo", label: "Recibo" },
+                ...catalog.floors.map((floor) => ({
+                  href: `#${floorAnchor(floor.code, floor.sortOrder)}`,
+                  label: floor.name,
+                })),
+                { href: "#consumos", label: "Consumos" },
+                { href: "#liquidacion", label: "Liquidación" },
+                { href: "#cierre", label: "Cerrar" },
+              ]}
+            />
           </section>
+
+          <PeriodGuide {...guide} />
 
           {isOpeningPeriod ? (
             <p className="notice notice-warning max-w-[46rem]">
-              Este es el período con la fecha inicial más antigua. Sus lecturas aprobadas
-              quedan como referencia. El consumo se calcula a partir del siguiente período,
-              aunque ambos compartan el día de lectura.
+              Este es el período más antiguo. Sirve para guardar las lecturas de
+              referencia. No hace falta el recibo. El cobro se calcula desde el
+              período siguiente.
             </p>
           ) : null}
 
-          <section>
-            <SectionHeading kicker="Cuenta de la casa">Recibo</SectionHeading>
-            {isOpeningPeriod ? (
-              <p className="muted mb-5 max-w-[42rem] text-[0.95rem]">
-                El recibo es opcional en el período inicial. Si lo cargas, se guarda, pero no
-                se usa para calcular consumos.
-              </p>
-            ) : (
-              <div className="mb-5">
-                <IssueList issues={billIssues} />
-              </div>
-            )}
+          <WorkPanel
+            id="recibo"
+            step={1}
+            kicker="Paso 1"
+            title="Recibo de la casa"
+            hint={
+              isOpeningPeriod
+                ? "En el período inicial el recibo es opcional. Si lo cargas se guarda, pero no se usa para calcular consumos."
+                : "Empieza por aquí. Carga el PDF y copia los números del recibo. Sin esto no se puede liquidar."
+            }
+          >
+            {isOpeningPeriod ? null : <IssueList issues={billIssues} />}
             <BillForm
               periodId={period.id}
               notes={bill?.notes ?? ""}
@@ -150,141 +144,141 @@ export default async function PeriodDetailPage({
                 })),
               }))}
             />
-            {catalog.services.some((service) =>
-              billChargeFields(service.code).some(
-                (field) => billChargeLookup(chargeValues, service.code, field.code) !== null,
-              ),
-            ) ? (
-              <div className="ledger-wrap mt-8">
-                <table className="ledger">
-                  <thead>
-                    <tr>
-                      <th>Servicio</th>
-                      <th>Renglón</th>
-                      <th>Importe</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {catalog.services.flatMap((service) =>
-                      billChargeFields(service.code).map((field) => (
-                        <tr key={`${service.code}-${field.code}`}>
-                          <td>{service.name}</td>
-                          <td>{field.label}</td>
-                          <td>
-                            {formatMoney(
-                              billChargeLookup(chargeValues, service.code, field.code),
-                            )}
-                          </td>
-                        </tr>
-                      )),
-                    )}
-                  </tbody>
-                </table>
+            {pdfUrl ? (
+              <div>
+                <p className="kicker section-kicker">Así se ve el PDF cargado</p>
+                <iframe title="Recibo PDF" src={pdfUrl} className="doc-frame mt-3" />
               </div>
             ) : null}
-            {bill?.other_services_ap_subtotal != null ? (
-              <p className="mt-4 text-[0.95rem]">
-                Subtotal otros servicios + AP (alumbrado público):{" "}
-                <strong className="figure">
-                  {formatMoney(Number(bill.other_services_ap_subtotal))}
-                </strong>
-              </p>
-            ) : null}
-            {pdfUrl ? (
-              <iframe title="Recibo PDF" src={pdfUrl} className="doc-frame mt-6" />
-            ) : null}
-          </section>
+          </WorkPanel>
 
-          <section>
-            <SectionHeading kicker="Contadores">Lecturas</SectionHeading>
-            <div className="meter-board">
+          <WorkPanel
+            id="lecturas"
+            step={2}
+            kicker="Paso 2"
+            title="Lecturas por piso"
+            hint="Piso 1 y Piso 2 tienen contador. Entra a cada bloque, mira la foto y aprueba el número. Piso 3 no tiene contador: se calcula solo."
+          >
+            <div className="stack-lg">
               {catalog.floors.map((floor) => {
-                const floorMeters = catalog.meters.filter((meter) => meter.floorId === floor.id);
-                if (floorMeters.length === 0) {
-                  return (
-                    <div key={floor.id} className="meter-board-row">
-                      <strong>{floor.name}</strong>
-                      <span className="muted">Calculado automáticamente</span>
-                    </div>
-                  );
-                }
+                const floorMeters = catalog.meters.filter(
+                  (meter) => meter.floorId === floor.id,
+                );
+                const floorCards = readingCards.filter(
+                  (card) => card.meter.floorId === floor.id,
+                );
+                const floorLines = consumptions.lines.filter(
+                  (line) => line.floorId === floor.id,
+                );
+                const energyLine = floorLines.find((line) => line.serviceCode === "energia");
+                const waterLine = floorLines.find((line) => line.serviceCode === "agua");
+
                 return (
-                  <div key={floor.id} className="meter-board-row">
-                    <strong>{floor.name}</strong>
-                    <div className="flex flex-wrap gap-x-5 gap-y-2">
-                      {floorMeters.map((meter) => {
-                        const card = readingCards.find(
-                          (item) =>
-                            item.meter.floorId === meter.floorId &&
-                            item.meter.serviceId === meter.serviceId,
-                        );
-                        const service = catalog.services.find((item) => item.id === meter.serviceId);
-                        return (
-                          <span
-                            key={`${meter.floorId}-${meter.serviceId}`}
-                            className="flex items-center gap-2"
-                          >
-                            <span className="muted">{service?.name}</span>
-                            {card?.reading ? (
-                              <ReadingStatusBadge status={card.reading.status} />
-                            ) : (
-                              <MissingBadge />
-                            )}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <FloorBand
+                    key={floor.id}
+                    id={floorAnchor(floor.code, floor.sortOrder)}
+                    tone={floorTone(floor.sortOrder)}
+                    name={floor.name}
+                    status={
+                      <ul className="floor-band-status">
+                        {floorMeters.length === 0 ? (
+                          <li className="muted">Sin contador · se calcula por diferencia</li>
+                        ) : (
+                          floorMeters.map((meter) => {
+                            const card = floorCards.find(
+                              (item) => item.meter.serviceId === meter.serviceId,
+                            );
+                            const service = catalog.services.find(
+                              (item) => item.id === meter.serviceId,
+                            );
+                            return (
+                              <li key={`${meter.floorId}-${meter.serviceId}`}>
+                                <span>{service?.name}</span>
+                                {card?.reading ? (
+                                  <ReadingStatusBadge status={card.reading.status} />
+                                ) : (
+                                  <MissingBadge />
+                                )}
+                              </li>
+                            );
+                          })
+                        )}
+                        {energyLine?.consumption != null ? (
+                          <li className="muted">
+                            Energía {consumptionDisplay(energyLine.consumption, false)}
+                          </li>
+                        ) : null}
+                        {waterLine?.consumption != null ? (
+                          <li className="muted">
+                            Agua {consumptionDisplay(waterLine.consumption, false)}
+                          </li>
+                        ) : null}
+                      </ul>
+                    }
+                  >
+                    {floorMeters.length === 0 ? (
+                      <p className="floor-empty">
+                        Este piso no tiene contador. Su consumo es el del recibo menos
+                        Piso 1 menos Piso 2. No hay foto que revisar aquí.
+                      </p>
+                    ) : (
+                      floorCards.map((card) => (
+                        <div key={`${card.meter.floorId}-${card.meter.serviceId}`}>
+                          <ReadingReviewCard
+                            periodId={period.id}
+                            floorId={card.meter.floorId}
+                            floorName={card.floor?.name ?? ""}
+                            serviceId={card.meter.serviceId}
+                            serviceName={card.service?.name ?? ""}
+                            unit={card.service?.unit ?? ""}
+                            readingId={card.reading?.id ?? null}
+                            status={card.reading?.status ?? null}
+                            submittedValue={
+                              card.reading ? Number(card.reading.submitted_value) : null
+                            }
+                            value={card.reading ? Number(card.reading.value) : null}
+                            previousValue={card.previous}
+                            consumption={card.consumption}
+                            photoUrl={card.photoUrl}
+                            readingDate={card.reading?.reading_date ?? period.ends_on}
+                            rejectionReason={card.reading?.rejection_reason ?? null}
+                            issues={card.issues}
+                            warningsNeedConfirm={card.warningsNeedConfirm}
+                            isOpeningPeriod={isOpeningPeriod}
+                            locked={periodLocked}
+                          />
+                          {card.audits.length > 0 ? (
+                            <details className="history-block">
+                              <summary>Historial</summary>
+                              <ul className="muted mt-2 space-y-1 text-[0.86rem]">
+                                {card.audits.map((audit) => (
+                                  <li key={audit.id}>
+                                    {formatDateTime(audit.occurred_at)} · {audit.action}
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+                          ) : null}
+                        </div>
+                      ))
+                    )}
+                  </FloorBand>
                 );
               })}
             </div>
-          </section>
+          </WorkPanel>
 
-          <section>
-            <SectionHeading kicker="Foto y valor">Revisión</SectionHeading>
-            {readingCards.map((card) => (
-              <div key={`${card.meter.floorId}-${card.meter.serviceId}`}>
-                <ReadingReviewCard
-                  periodId={period.id}
-                  floorId={card.meter.floorId}
-                  floorName={card.floor?.name ?? ""}
-                  serviceId={card.meter.serviceId}
-                  serviceName={card.service?.name ?? ""}
-                  unit={card.service?.unit ?? ""}
-                  readingId={card.reading?.id ?? null}
-                  status={card.reading?.status ?? null}
-                  submittedValue={
-                    card.reading ? Number(card.reading.submitted_value) : null
-                  }
-                  value={card.reading ? Number(card.reading.value) : null}
-                  previousValue={card.previous}
-                  consumption={card.consumption}
-                  photoUrl={card.photoUrl}
-                  readingDate={card.reading?.reading_date ?? period.ends_on}
-                  rejectionReason={card.reading?.rejection_reason ?? null}
-                  issues={card.issues}
-                  warningsNeedConfirm={card.warningsNeedConfirm}
-                  isOpeningPeriod={isOpeningPeriod}
-                  locked={periodLocked}
-                />
-                {card.audits.length > 0 ? (
-                  <details className="history-block">
-                    <summary>Historial</summary>
-                    <ul className="muted mt-2 space-y-1 text-[0.86rem]">
-                      {card.audits.map((audit) => (
-                        <li key={audit.id}>
-                          {formatDateTime(audit.occurred_at)} · {audit.action}
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                ) : null}
-              </div>
-            ))}
-          </section>
-
-          <section>
-            <SectionHeading kicker="Por piso">Consumos</SectionHeading>
+          <WorkPanel
+            id="consumos"
+            step={3}
+            kicker="Paso 3"
+            title="Consumos"
+            hint={
+              isOpeningPeriod
+                ? "En el período inicial no hay consumo: estas lecturas son la base del siguiente."
+                : "Revisa que cada piso tenga un consumo con sentido. Si Piso 3 sale negativo, las lecturas o el recibo no cuadran."
+            }
+          >
             <div className="ledger-wrap">
               <table className="ledger">
                 <thead>
@@ -328,10 +322,8 @@ export default async function PeriodDetailPage({
                 </tbody>
               </table>
             </div>
-            <div className="mt-4">
-              <IssueList issues={consumptions.lines.flatMap((line) => line.issues)} />
-            </div>
-          </section>
+            <IssueList issues={consumptions.lines.flatMap((line) => line.issues)} />
+          </WorkPanel>
 
           <SettlementPanel
             settlement={settlement}
@@ -339,36 +331,231 @@ export default async function PeriodDetailPage({
             isOpeningPeriod={isOpeningPeriod}
           />
 
-          <section>
-            <SectionHeading kicker="Cierre">Estado del período</SectionHeading>
+          <WorkPanel
+            id="cierre"
+            step={5}
+            kicker="Paso 5"
+            title="Cerrar el período"
+            hint={
+              period.status === "closed"
+                ? "Este período ya está cerrado. El recibo y las lecturas no se cambian hasta reabrirlo."
+                : period.status === "ready"
+                  ? "La liquidación ya se puede usar. Cierra el período cuando hayas revisado cuánto paga cada piso."
+                  : "Cuando el recibo esté completo y las lecturas aprobadas, marca el período como listo. Después podrás cerrarlo."
+            }
+          >
             <IssueList issues={readiness.blockers} />
-            <div className="mt-4">
-              <PeriodActions
-                periodId={period.id}
-                status={period.status}
-                canMarkReady={readiness.ready}
-                canClose={canClose}
-                closeBlockedMessage={
-                  period.status === "ready" && !canClose
-                    ? (settlementUnavailableMessage ??
-                      "La liquidación todavía no se puede calcular.")
-                    : null
-                }
-              />
-            </div>
-          </section>
+            <PeriodActions
+              periodId={period.id}
+              status={period.status}
+              canMarkReady={readiness.ready}
+              canClose={canClose}
+              closeBlockedMessage={
+                period.status === "ready" && !canClose
+                  ? (settlementUnavailableMessage ??
+                    "La liquidación todavía no se puede calcular.")
+                  : null
+              }
+            />
+          </WorkPanel>
         </div>
       </PageMain>
     </>
   );
 }
 
-function statusClass(done: boolean, blocked = false) {
-  if (blocked) {
-    return "status-item is-blocked";
+function floorAnchor(code: string, sortOrder: number): string {
+  return code || `piso-${sortOrder}`;
+}
+
+function floorTone(sortOrder: number): 1 | 2 | 3 {
+  if (sortOrder <= 1) {
+    return 1;
   }
-  if (done) {
-    return "status-item is-done";
+  if (sortOrder === 2) {
+    return 2;
   }
-  return "status-item is-wait";
+  return 3;
+}
+
+function buildAdminGuide(input: {
+  isOpeningPeriod: boolean;
+  billComplete: boolean;
+  allApproved: boolean;
+  consumptionsOk: boolean;
+  hasSettlement: boolean;
+  status: "open" | "ready" | "closed";
+  canMarkReady: boolean;
+}): {
+  nextTitle: string;
+  nextDetail: string;
+  nextHref: string;
+  nextLabel: string;
+  steps: GuideStep[];
+} {
+  const reciboState: GuideStep["state"] = input.isOpeningPeriod
+    ? input.billComplete
+      ? "done"
+      : "optional"
+    : input.billComplete
+      ? "done"
+      : "wait";
+  const lecturasState: GuideStep["state"] = input.allApproved ? "done" : "wait";
+  const consumosState: GuideStep["state"] = input.isOpeningPeriod
+    ? "optional"
+    : input.consumptionsOk
+      ? "done"
+      : "wait";
+  const liquidacionState: GuideStep["state"] = input.isOpeningPeriod
+    ? "optional"
+    : input.hasSettlement
+      ? "done"
+      : "wait";
+  const cierreState: GuideStep["state"] =
+    input.status === "closed" ? "done" : "wait";
+
+  const steps: GuideStep[] = [
+    {
+      href: "#recibo",
+      n: 1,
+      title: "Recibo",
+      detail: input.isOpeningPeriod
+        ? "Opcional en el período inicial"
+        : "Cargar el PDF y copiar los números",
+      state: reciboState,
+    },
+    {
+      href: "#lecturas",
+      n: 2,
+      title: "Lecturas",
+      detail: "Revisar fotos de Piso 1 y Piso 2",
+      state: lecturasState,
+    },
+    {
+      href: "#consumos",
+      n: 3,
+      title: "Consumos",
+      detail: input.isOpeningPeriod
+        ? "No aplica todavía"
+        : "Comprobar que Piso 3 no quede negativo",
+      state: consumosState,
+    },
+    {
+      href: "#liquidacion",
+      n: 4,
+      title: "Liquidación",
+      detail: input.isOpeningPeriod
+        ? "Este período no se liquida"
+        : "Ver cuánto paga cada piso",
+      state: liquidacionState,
+    },
+    {
+      href: "#cierre",
+      n: 5,
+      title: "Cerrar",
+      detail:
+        input.status === "closed"
+          ? "Ya está cerrado"
+          : "Marcar listo y luego cerrar",
+      state: cierreState,
+    },
+  ];
+
+  let currentHref = "#cierre";
+  if (!input.isOpeningPeriod && !input.billComplete) {
+    currentHref = "#recibo";
+  } else if (!input.allApproved) {
+    currentHref = "#lecturas";
+  } else if (!input.isOpeningPeriod && !input.consumptionsOk) {
+    currentHref = "#consumos";
+  } else if (!input.isOpeningPeriod && !input.hasSettlement) {
+    currentHref = "#liquidacion";
+  } else if (input.status !== "closed") {
+    currentHref = "#cierre";
+  }
+
+  for (const step of steps) {
+    if (step.href === currentHref && step.state === "wait") {
+      step.state = "current";
+    }
+  }
+
+  if (input.status === "closed") {
+    return {
+      nextTitle: "Período cerrado",
+      nextDetail:
+        "Ya no se cambia el recibo ni las lecturas. Si hace falta corregir algo, reabre el período.",
+      nextHref: "#cierre",
+      nextLabel: "Ir al cierre",
+      steps,
+    };
+  }
+
+  if (!input.isOpeningPeriod && !input.billComplete) {
+    return {
+      nextTitle: "Carga el recibo",
+      nextDetail:
+        "Pulsa el botón verde para elegir el PDF. Luego copia los números y, al final, Guardar recibo.",
+      nextHref: "#recibo",
+      nextLabel: "Ir al recibo",
+      steps,
+    };
+  }
+
+  if (!input.allApproved) {
+    return {
+      nextTitle: input.isOpeningPeriod
+        ? "Registra las lecturas de referencia"
+        : "Revisa las lecturas",
+      nextDetail: input.isOpeningPeriod
+        ? "No hace falta recibo. En Piso 1 y Piso 2 entra energía y agua, sube la foto y aprueba el número."
+        : "Entra a Piso 1 y después a Piso 2. Compara cada foto con el número y aprueba o pide corrección.",
+      nextHref: "#lecturas",
+      nextLabel: "Ir a las lecturas",
+      steps,
+    };
+  }
+
+  if (!input.isOpeningPeriod && !input.consumptionsOk) {
+    return {
+      nextTitle: "Revisa los consumos",
+      nextDetail:
+        "Algo no cuadra: falta una lectura anterior o el Piso 3 quedó negativo. Corrige lecturas o totales del recibo.",
+      nextHref: "#consumos",
+      nextLabel: "Ir a los consumos",
+      steps,
+    };
+  }
+
+  if (!input.isOpeningPeriod && !input.hasSettlement) {
+    return {
+      nextTitle: "Falta la liquidación",
+      nextDetail:
+        "Cuando el recibo y los consumos estén completos, aquí aparece cuánto paga cada piso.",
+      nextHref: "#liquidacion",
+      nextLabel: "Ir a la liquidación",
+      steps,
+    };
+  }
+
+  if (input.status === "open" && input.canMarkReady) {
+    return {
+      nextTitle: "Marca el período como listo",
+      nextDetail: input.isOpeningPeriod
+        ? "Las lecturas de referencia ya están. Márcalo listo y luego crea el período del recibo actual."
+        : "Recibo, lecturas y liquidación ya están. Si se ve bien, marca el período como listo.",
+      nextHref: "#cierre",
+      nextLabel: "Ir a cerrar",
+      steps,
+    };
+  }
+
+  return {
+    nextTitle: "Cierra el período",
+    nextDetail:
+      "Mira cuánto paga cada piso. Si está correcto, cierra para que nadie cambie el recibo ni las lecturas.",
+    nextHref: "#cierre",
+    nextLabel: "Ir a cerrar",
+    steps,
+  };
 }

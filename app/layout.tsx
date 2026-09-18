@@ -26,6 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
+      data-scroll-behavior="smooth"
       className={`${fraunces.variable} ${publicSans.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-paper text-ink">{children}</body>

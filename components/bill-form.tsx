@@ -75,23 +75,32 @@ export function BillForm({
         </p>
       ) : null}
       <input type="hidden" name="period_id" value={periodId} />
-      <label className="field">
-        <span className="field-label">
-          PDF del recibo {hasPdf ? "(opcional si ya está cargado)" : ""}
-        </span>
-        <input
-          name="pdf"
-          type="file"
-          accept="application/pdf"
-          required={!hasPdf && !locked}
-          disabled={locked}
-          className="input-control file-control"
-        />
-      </label>
+      <div className="file-drop">
+        <p className="file-drop-title">PDF del recibo</p>
+        <p className="muted text-[0.9rem]">
+          Es el archivo que envió la empresa. Tiene que ser un PDF. Pulsa el botón
+          verde para buscarlo en el computador.
+        </p>
+        <label className="field">
+          <span className="sr-only">Archivo PDF del recibo</span>
+          <input
+            name="pdf"
+            type="file"
+            accept="application/pdf"
+            required={!hasPdf && !locked}
+            disabled={locked}
+            className="input-control file-control"
+          />
+        </label>
+        <p className={hasPdf ? "text-[0.9rem]" : "muted text-[0.9rem]"}>
+          {hasPdf
+            ? "Ya hay un PDF cargado. Abajo puedes verlo. Elige otro solo si quieres reemplazarlo."
+            : "Todavía no hay PDF. Sin este archivo no se puede guardar el recibo."}
+        </p>
+      </div>
       <p className="muted text-[0.92rem]">
-        Copia los consumos y los importes en pesos tal como aparecen en el recibo. Cero es
-        válido si ese renglón no cobra. El mínimo vital y el ajuste al peso pueden ser
-        negativos.
+        Después copia los números tal como aparecen en el recibo. Si un renglón no
+        cobra, escribe 0. El mínimo vital y el ajuste al peso pueden ser negativos.
       </p>
       <div className="stack-lg">
         {services.map((service) => {
@@ -103,8 +112,12 @@ export function BillForm({
                   value: "",
                 }));
           return (
-            <fieldset key={service.code} className="fieldset-block">
+            <fieldset key={service.code} className="fieldset-panel">
               <legend>{service.name}</legend>
+              <p className="fieldset-lead">
+                Primero el consumo total en {service.unit}. Luego cada renglón en
+                pesos, con el mismo nombre que en el recibo.
+              </p>
               <label className="field">
                 <span className="field-label">
                   Total {service.name} ({service.unit})
@@ -138,8 +151,11 @@ export function BillForm({
           );
         })}
       </div>
-      <fieldset className="fieldset-block">
+      <fieldset className="fieldset-panel">
         <legend>Toda la vivienda</legend>
+        <p className="fieldset-lead">
+          Un solo valor del recibo para toda la casa. AP significa alumbrado público.
+        </p>
         <label className="field">
           <span className="field-label">
             Subtotal otros servicios + AP (alumbrado público)
@@ -153,12 +169,9 @@ export function BillForm({
             className="input-control figure"
           />
         </label>
-        <p className="muted mt-2 text-[0.78rem]">
-          Un solo valor del recibo para toda la casa. AP significa alumbrado público.
-        </p>
       </fieldset>
       <label className="field">
-        <span className="field-label">Notas</span>
+        <span className="field-label">Notas (opcional)</span>
         <textarea
           name="notes"
           defaultValue={notes}
@@ -168,7 +181,13 @@ export function BillForm({
         />
       </label>
       {locked ? null : (
-        <SubmitButton pendingLabel="Guardando…">Guardar recibo</SubmitButton>
+        <div>
+          <p className="save-hint">
+            Cuando termines, pulsa este botón. Si no lo pulsas, los números no se
+            guardan.
+          </p>
+          <SubmitButton pendingLabel="Guardando…">Guardar recibo</SubmitButton>
+        </div>
       )}
     </ActionForm>
   );

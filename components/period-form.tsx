@@ -6,7 +6,7 @@ import { createPeriod } from "@/app/actions/periods";
 import { periodLabelFromDates } from "@/lib/domain/period-label";
 import { SubmitButton } from "@/components/submit-button";
 
-export function PeriodForm() {
+export function PeriodForm({ isFirst = false }: { isFirst?: boolean }) {
   const [startsOn, setStartsOn] = useState("");
   const [endsOn, setEndsOn] = useState("");
   const label = useMemo(
@@ -16,6 +16,19 @@ export function PeriodForm() {
 
   return (
     <ActionForm action={createPeriod} className="stack-lg">
+      {isFirst ? (
+        <p className="notice notice-info">
+          Es el primer período de la casa. Usa las fechas de las lecturas más
+          antiguas que tengas (pueden ser de una planilla). Eso deja la referencia.
+          El recibo se liquida en el período siguiente.
+        </p>
+      ) : (
+        <p className="notice">
+          Un período va de una fecha de lectura a la siguiente. No tiene que ser un
+          mes calendario. Si el día coincide (por ejemplo, ambos el 11 feb), el
+          anterior es el que empieza antes.
+        </p>
+      )}
       <label className="field">
         <span className="field-label">Fecha inicial</span>
         <input
@@ -26,6 +39,9 @@ export function PeriodForm() {
           onChange={(event) => setStartsOn(event.target.value)}
           className="input-control"
         />
+        <span className="help-line">
+          El día de la lectura con la que empieza este período.
+        </span>
       </label>
       <label className="field">
         <span className="field-label">Fecha final</span>
@@ -37,20 +53,23 @@ export function PeriodForm() {
           onChange={(event) => setEndsOn(event.target.value)}
           className="input-control"
         />
+        <span className="help-line">
+          El día de la lectura con la que termina. Suele ser el del recibo.
+        </span>
       </label>
       <p className="period-name-preview">
-        <span className="kicker">Nombre del período</span>
+        <span className="kicker">Así se va a llamar</span>
         <strong className={label ? undefined : "type-display-placeholder"}>
-          {label ?? "Se genera con las fechas inicial y final."}
+          {label ?? "Elige las dos fechas para ver el nombre."}
         </strong>
       </p>
-      <p className="muted text-[0.92rem]">
-        El período con la fecha inicial más antigua guarda las lecturas de referencia.
-        El consumo se calcula a partir del siguiente. Si el día de lectura coincide
-        (por ejemplo, un período termina el 11 feb y el siguiente empieza el 11 feb),
-        el anterior es el que empieza antes.
-      </p>
-      <SubmitButton pendingLabel="Creando…">Crear período</SubmitButton>
+      <div>
+        <p className="save-hint">
+          Si las fechas se ven bien, pulsa el botón. Después entrarás a cargar el
+          recibo y las lecturas.
+        </p>
+        <SubmitButton pendingLabel="Creando…">Crear período</SubmitButton>
+      </div>
     </ActionForm>
   );
 }

@@ -74,9 +74,7 @@ export function ReadingReviewCard({
   return (
     <section className="review-card">
       <div className="review-head flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="section-title text-[1.35rem]">
-          {floorName} · {serviceName}
-        </h3>
+        <h3 className="section-title text-[1.35rem]">{serviceName}</h3>
         <div className="flex items-center gap-3">
           {status ? <ReadingStatusBadge status={status} /> : <MissingBadge />}
           <span className="kicker">{unit}</span>
@@ -166,7 +164,9 @@ export function ReadingReviewCard({
           <input type="hidden" name="period_id" value={periodId} />
           <input type="hidden" name="floor_id" value={floorId} />
           <input type="hidden" name="service_id" value={serviceId} />
-          <p className="muted text-[0.92rem]">Registrar lectura desde administración</p>
+          <p className="muted text-[0.92rem]">
+            Este contador aún no tiene lectura. Escríbela tú y sube la foto.
+          </p>
           <label className="field">
             <span className="field-label">Lectura actual</span>
             <input
@@ -186,8 +186,11 @@ export function ReadingReviewCard({
               className="input-control"
             />
           </label>
-          <label className="field">
-            <span className="field-label">Fotografía</span>
+          <div className="file-drop file-drop-compact">
+            <p className="file-drop-title">Foto del contador</p>
+            <p className="muted text-[0.86rem]">
+              Pulsa el botón verde y elige la fotografía del medidor.
+            </p>
             <input
               name="photo"
               type="file"
@@ -195,7 +198,7 @@ export function ReadingReviewCard({
               required
               className="input-control file-control"
             />
-          </label>
+          </div>
           <SubmitButton busy={pendingPhoto} pendingLabel="Preparando imagen…">
             Registrar
           </SubmitButton>

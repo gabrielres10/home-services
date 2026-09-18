@@ -26,6 +26,17 @@ export function PeriodActions({
             return markPeriodReady(periodId);
           }}
         >
+          {canMarkReady ? (
+            <p className="notice notice-info">
+              Recibo y lecturas ya están. Si revisaste las fotos, marca el período
+              como listo.
+            </p>
+          ) : (
+            <p className="notice">
+              Este botón se activa cuando el recibo esté guardado y las lecturas de
+              Piso 1 y Piso 2 estén aprobadas. Completa los pasos de arriba.
+            </p>
+          )}
           <div className="action-bar">
             <SubmitButton disabled={!canMarkReady} pendingLabel="Marcando…">
               Marcar período como listo
@@ -41,6 +52,11 @@ export function PeriodActions({
               return closePeriod(periodId);
             }}
           >
+            {canClose ? (
+              <p className="notice notice-info">
+                Si ya viste cuánto paga cada piso y está bien, cierra el período.
+              </p>
+            ) : null}
             <div className="action-bar">
               <SubmitButton
                 disabled={!canClose}

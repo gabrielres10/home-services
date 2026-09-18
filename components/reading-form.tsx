@@ -93,8 +93,11 @@ export function ReadingForm({
             className="input-control"
           />
         </label>
-        <label className="field">
-          <span className="field-label">Fotografía del contador</span>
+        <div className="file-drop file-drop-compact">
+          <p className="file-drop-title">Fotografía del contador</p>
+          <p className="muted text-[0.86rem]">
+            Pulsa el botón verde y elige la foto que tomaste al medidor.
+          </p>
           <input
             name="photo"
             type="file"
@@ -102,7 +105,7 @@ export function ReadingForm({
             required={photoRequired}
             className="input-control file-control"
           />
-        </label>
+        </div>
         <SubmitButton busy={pendingPhoto} pendingLabel="Preparando imagen…">
           Enviar lectura
         </SubmitButton>

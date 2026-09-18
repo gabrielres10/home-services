@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/app-header";
 import { IssueList } from "@/components/issue-list";
 import { ReadingForm } from "@/components/reading-form";
 import { ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
-import { PageMain } from "@/components/ui";
+import { PageMain, WorkPanel } from "@/components/ui";
 import { loadCatalog, loadPreviousApprovedValue, hasAnyEarlierPeriod } from "@/lib/data/catalog";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { signedUrl } from "@/lib/data/period-detail";
@@ -61,14 +61,12 @@ export default async function MyReadingsPage() {
   async function renderPeriod(period: NonNullable<typeof periods>[number], editable: boolean) {
     const earlier = await hasAnyEarlierPeriod(period.starts_on);
     return (
-      <section key={period.id} className="stack-lg border-t border-line pt-6">
-        <div>
-          <p className="kicker">{editable ? "Abierto" : "Anterior"}</p>
-          <h3 className="section-title mt-1">{period.label}</h3>
-          <p className="muted mt-1 text-[0.9rem]">
-            {formatDate(period.starts_on)} — {formatDate(period.ends_on)}
-          </p>
-        </div>
+      <WorkPanel
+        key={period.id}
+        kicker={editable ? "Ahora toca enviar" : "Solo consulta"}
+        title={period.label}
+        hint={`${formatDate(period.starts_on)} — ${formatDate(period.ends_on)}. Energía y agua van por separado: termina una y sigue con la otra.`}
+      >
         {await Promise.all(
           floorMeters.map(async (meter) => {
           const service = catalog.services.find((item) => item.id === meter.serviceId);
@@ -101,7 +99,7 @@ export default async function MyReadingsPage() {
           }
 
           return (
-            <div key={meter.serviceId} className="stack-md border-t border-line/70 pt-5">
+            <div key={meter.serviceId} className="fieldset-panel stack-md">
               <div className="flex flex-wrap items-center gap-3">
                 <h4 className="type-display text-[1.25rem] font-medium">
                   {service?.name}
@@ -150,7 +148,7 @@ export default async function MyReadingsPage() {
           );
           }),
         )}
-      </section>
+      </WorkPanel>
     );
   }
 
@@ -158,15 +156,20 @@ export default async function MyReadingsPage() {
     <>
       <AppHeader user={user} title="Mis lecturas" />
       <PageMain variant="narrow">
-        <p className="muted mb-8 max-w-[38rem] text-[0.95rem]">
-          Piso: <strong className="text-ink">{user.floorName}</strong>. Introduce solo la
-          lectura actual y la fotografía. La lectura anterior se toma del último valor
-          aprobado de un período que empiece antes. En el período más antiguo se registra
-          la lectura inicial; el consumo se calcula desde el siguiente.
-        </p>
+        <aside className="now-card mb-8">
+          <p className="kicker">Tu piso</p>
+          <h2>{user.floorName ?? "Lecturas"}</h2>
+          <p>
+            En cada contador escribe el número que ves hoy y sube una foto. No
+            tienes que buscar la lectura anterior: el sistema la pone.
+          </p>
+        </aside>
         <div className="stack-xl">
           {openPeriods.length === 0 ? (
-            <p>No hay períodos abiertos que requieran lecturas.</p>
+            <p className="notice">
+              No hay un período abierto. Cuando el administrador cree uno, aquí
+              aparecerán tus contadores para enviar la lectura y la foto.
+            </p>
           ) : (
             await Promise.all(openPeriods.map((period) => renderPeriod(period, true)))
           )}
