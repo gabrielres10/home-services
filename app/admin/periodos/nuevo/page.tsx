@@ -7,7 +7,7 @@ export default async function NewPeriodPage() {
   const user = await requireAdmin();
   return (
     <>
-      <AppHeader user={user} title="Nuevo período" />
+      <AppHeader user={user} title="Nuevo período" crumbs={[{ href: "/admin", label: "Períodos" }]} />
       <PageMain variant="form">
         <PeriodForm />
       </PageMain>

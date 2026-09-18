@@ -63,7 +63,11 @@ export default async function PeriodDetailPage({
 
   return (
     <>
-      <AppHeader user={user} title={period.label} />
+      <AppHeader
+        user={user}
+        title={period.label}
+        crumbs={[{ href: "/admin", label: "Períodos" }]}
+      />
       <PageMain>
         <div className="stack-xl">
           <section className="period-hero">
