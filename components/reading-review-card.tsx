@@ -165,32 +165,34 @@ export function ReadingReviewCard({
           </ActionForm>
         </div>
       ) : (
-        <ActionForm action={adminSubmit} className="review-actions stack-md">
+        <ActionForm action={adminSubmit} className="review-actions review-register">
           <input type="hidden" name="period_id" value={periodId} />
           <input type="hidden" name="floor_id" value={floorId} />
           <input type="hidden" name="service_id" value={serviceId} />
-          <p className="muted text-[0.92rem]">
+          <p className="review-register-lead muted text-[0.92rem]">
             Este contador aún no tiene lectura. Escríbela tú y sube la foto.
           </p>
-          <label className="field">
-            <span className="field-label">Lectura actual</span>
-            <input
-              name="value"
-              inputMode="decimal"
-              required
-              className="input-control input-figure"
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">Fecha de lectura</span>
-            <input
-              name="reading_date"
-              type="date"
-              required
-              defaultValue={readingDate}
-              className="input-control"
-            />
-          </label>
+          <div className="review-register-fields">
+            <label className="field">
+              <span className="field-label">Lectura actual</span>
+              <input
+                name="value"
+                inputMode="decimal"
+                required
+                className="input-control input-figure"
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Fecha de lectura</span>
+              <input
+                name="reading_date"
+                type="date"
+                required
+                defaultValue={readingDate}
+                className="input-control"
+              />
+            </label>
+          </div>
           <PhotoPicker
             title="Foto del contador"
             onPreviewChange={setPreviewUrl}

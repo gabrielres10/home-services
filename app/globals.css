@@ -897,6 +897,19 @@ form > .notice:first-child {
   padding-top: 0.35rem;
 }
 
+.review-register-lead {
+  margin: 0;
+}
+
+.review-register-fields {
+  display: grid;
+  gap: 0.85rem 1.25rem;
+}
+
+.review-register-fields .input-control {
+  min-height: 3.15rem;
+}
+
 .meter-board {
   display: grid;
   gap: 0.15rem;
@@ -1500,6 +1513,15 @@ details[open] > .archive-toggle::before {
 
   .review-actions {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .review-actions.review-register {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-register-fields {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
   }
 
   .meter-board-row {
