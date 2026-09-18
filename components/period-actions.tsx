@@ -2,6 +2,7 @@
 
 import { ActionForm } from "@/components/action-form";
 import { closePeriod, markPeriodReady, reopenPeriod } from "@/app/actions/periods";
+import { SubmitButton } from "@/components/submit-button";
 
 export function PeriodActions({
   periodId,
@@ -17,7 +18,7 @@ export function PeriodActions({
   closeBlockedMessage: string | null;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="stack-md">
       {status === "open" ? (
         <ActionForm
           action={async (formData) => {
@@ -25,34 +26,49 @@ export function PeriodActions({
             return markPeriodReady(periodId);
           }}
         >
-          <button
-            type="submit"
-            disabled={!canMarkReady}
-            className="rounded bg-stone-900 px-4 py-2 text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-400"
-          >
-            Marcar período como listo
-          </button>
+          {canMarkReady ? (
+            <p className="notice notice-info">
+              Recibo y lecturas ya están. Si revisaste las fotos, marca el período
+              como listo.
+            </p>
+          ) : (
+            <p className="notice">
+              Este botón se activa cuando el recibo esté guardado y las lecturas de
+              Piso 1 y Piso 2 estén aprobadas. Completa los pasos de arriba.
+            </p>
+          )}
+          <div className="action-bar">
+            <SubmitButton disabled={!canMarkReady} pendingLabel="Marcando…">
+              Marcar período como listo
+            </SubmitButton>
+          </div>
         </ActionForm>
       ) : null}
       {status === "ready" ? (
-        <div className="space-y-3">
+        <div className="stack-md">
           <ActionForm
             action={async (formData) => {
               void formData;
               return closePeriod(periodId);
             }}
           >
-            <button
-              type="submit"
-              disabled={!canClose}
-              title={closeBlockedMessage ?? undefined}
-              className="rounded bg-stone-900 px-4 py-2 text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-400"
-            >
-              Cerrar período
-            </button>
+            {canClose ? (
+              <p className="notice notice-info">
+                Si ya viste cuánto paga cada piso y está bien, cierra el período.
+              </p>
+            ) : null}
+            <div className="action-bar">
+              <SubmitButton
+                disabled={!canClose}
+                title={closeBlockedMessage ?? undefined}
+                pendingLabel="Cerrando…"
+              >
+                Cerrar período
+              </SubmitButton>
+            </div>
           </ActionForm>
           {closeBlockedMessage ? (
-            <p className="text-sm text-stone-600">{closeBlockedMessage}</p>
+            <p className="muted text-[0.92rem]">{closeBlockedMessage}</p>
           ) : null}
           <ActionForm
             action={async (formData) => {
@@ -60,12 +76,9 @@ export function PeriodActions({
               return reopenPeriod(periodId);
             }}
           >
-            <button
-              type="submit"
-              className="rounded border border-stone-300 px-4 py-2 text-stone-700 hover:bg-stone-50"
-            >
+            <SubmitButton variant="ghost" pendingLabel="Reabriendo…">
               Reabrir período
-            </button>
+            </SubmitButton>
           </ActionForm>
         </div>
       ) : null}
@@ -76,16 +89,15 @@ export function PeriodActions({
             return reopenPeriod(periodId);
           }}
         >
-          <p className="text-sm text-stone-600">
+          <p className="muted text-[0.92rem]">
             El período está cerrado. El recibo y las lecturas no se pueden cambiar
             hasta reabrirlo.
           </p>
-          <button
-            type="submit"
-            className="rounded border border-stone-300 px-4 py-2 text-stone-700 hover:bg-stone-50"
-          >
-            Reabrir período
-          </button>
+          <div className="action-bar">
+            <SubmitButton variant="ghost" pendingLabel="Reabriendo…">
+              Reabrir período
+            </SubmitButton>
+          </div>
         </ActionForm>
       ) : null}
     </div>

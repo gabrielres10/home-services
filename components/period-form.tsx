@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { createPeriod } from "@/app/actions/periods";
 import { periodLabelFromDates } from "@/lib/domain/period-label";
+import { SubmitButton } from "@/components/submit-button";
 
-export function PeriodForm() {
+export function PeriodForm({ isFirst = false }: { isFirst?: boolean }) {
   const [startsOn, setStartsOn] = useState("");
   const [endsOn, setEndsOn] = useState("");
   const label = useMemo(
@@ -14,47 +15,61 @@ export function PeriodForm() {
   );
 
   return (
-    <ActionForm action={createPeriod} className="max-w-md space-y-4">
-      <label className="block text-sm">
-        <span className="mb-1 block text-stone-700">Fecha inicial</span>
+    <ActionForm action={createPeriod} className="stack-lg">
+      {isFirst ? (
+        <p className="notice notice-info">
+          Es el primer período de la casa. Usa las fechas de las lecturas más
+          antiguas que tengas (pueden ser de una planilla). Eso deja la referencia.
+          El recibo se liquida en el período siguiente.
+        </p>
+      ) : (
+        <p className="notice">
+          Un período va de una fecha de lectura a la siguiente. No tiene que ser un
+          mes calendario. Si el día coincide (por ejemplo, ambos el 11 feb), el
+          anterior es el que empieza antes.
+        </p>
+      )}
+      <label className="field">
+        <span className="field-label">Fecha inicial</span>
         <input
           name="starts_on"
           type="date"
           required
           value={startsOn}
           onChange={(event) => setStartsOn(event.target.value)}
-          className="w-full rounded border border-stone-300 px-3 py-2"
+          className="input-control"
         />
+        <span className="help-line">
+          El día de la lectura con la que empieza este período.
+        </span>
       </label>
-      <label className="block text-sm">
-        <span className="mb-1 block text-stone-700">Fecha final</span>
+      <label className="field">
+        <span className="field-label">Fecha final</span>
         <input
           name="ends_on"
           type="date"
           required
           value={endsOn}
           onChange={(event) => setEndsOn(event.target.value)}
-          className="w-full rounded border border-stone-300 px-3 py-2"
+          className="input-control"
         />
-      </label>
-      <p className="rounded border border-stone-200 bg-stone-50 px-3 py-2 text-sm">
-        <span className="block text-stone-500">Nombre del período</span>
-        <span className="font-medium text-stone-900">
-          {label ?? "Se genera con las fechas inicial y final."}
+        <span className="help-line">
+          El día de la lectura con la que termina. Suele ser el del recibo.
         </span>
+      </label>
+      <p className="period-name-preview">
+        <span className="kicker">Así se va a llamar</span>
+        <strong className={label ? undefined : "type-display-placeholder"}>
+          {label ?? "Elige las dos fechas para ver el nombre."}
+        </strong>
       </p>
-      <p className="text-sm text-stone-600">
-        El período con la fecha inicial más antigua guarda las lecturas de referencia.
-        El consumo se calcula a partir del siguiente. Si el día de lectura coincide
-        (por ejemplo, un período termina el 11 feb y el siguiente empieza el 11 feb),
-        el anterior es el que empieza antes.
-      </p>
-      <button
-        type="submit"
-        className="rounded bg-stone-900 px-4 py-2 text-white hover:bg-stone-800"
-      >
-        Crear período
-      </button>
+      <div>
+        <p className="save-hint">
+          Si las fechas se ven bien, pulsa el botón. Después entrarás a cargar el
+          recibo y las lecturas.
+        </p>
+        <SubmitButton pendingLabel="Creando…">Crear período</SubmitButton>
+      </div>
     </ActionForm>
   );
 }
