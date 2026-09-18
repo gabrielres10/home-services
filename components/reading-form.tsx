@@ -24,6 +24,7 @@ export function ReadingForm({
   disabled,
   photoRequired = true,
   isOpeningPeriod = false,
+  existingPhotoUrl = null,
 }: {
   periodId: string;
   floorId: string;
@@ -38,8 +39,11 @@ export function ReadingForm({
   disabled: boolean;
   photoRequired?: boolean;
   isOpeningPeriod?: boolean;
+  existingPhotoUrl?: string | null;
 }) {
   const [pendingPhoto, setPendingPhoto] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const displayPhoto = previewUrl ?? existingPhotoUrl;
 
   async function action(formData: FormData) {
     const file = formData.get("photo");
@@ -63,6 +67,16 @@ export function ReadingForm({
       <input type="hidden" name="period_id" value={periodId} />
       <input type="hidden" name="floor_id" value={floorId} />
       <input type="hidden" name="service_id" value={serviceId} />
+      {displayPhoto ? (
+        <figure className="review-photo">
+          {/* URL firmada o vista previa local: next/image no aplica. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={displayPhoto}
+            alt={`Fotografía del contador de ${serviceName} en ${floorName}`}
+          />
+        </figure>
+      ) : null}
       <p className="muted text-[0.86rem]">
         {floorName} · {serviceName} ({unit})
       </p>
@@ -96,7 +110,7 @@ export function ReadingForm({
         </label>
         <PhotoPicker
           required={photoRequired}
-          alt={`Vista previa del contador de ${serviceName} en ${floorName}`}
+          onPreviewChange={setPreviewUrl}
         />
         <SubmitButton busy={pendingPhoto} pendingLabel="Preparando imagen…">
           Enviar lectura

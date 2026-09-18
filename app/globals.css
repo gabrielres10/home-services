@@ -871,24 +871,6 @@ form > .notice:first-child {
   font-size: 0.75rem;
 }
 
-.photo-preview {
-  margin: 0.35rem 0 0;
-  background: color-mix(in srgb, var(--ink) 6%, var(--paper));
-}
-
-.photo-preview img {
-  display: block;
-  width: 100%;
-  max-height: 22rem;
-  object-fit: contain;
-}
-
-.photo-preview figcaption {
-  padding: 0.5rem 0.15rem 0.15rem;
-  color: var(--ink);
-  font-size: 0.82rem;
-}
-
 .review-stats {
   display: grid;
   gap: 0.85rem 1.25rem;

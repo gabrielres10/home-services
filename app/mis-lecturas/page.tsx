@@ -106,7 +106,7 @@ export default async function MyReadingsPage() {
                 </h4>
                 {reading ? <ReadingStatusBadge status={reading.status} /> : <MissingBadge />}
               </div>
-              {photoUrl ? (
+              {photoUrl && !(editable && reading?.status !== "approved") ? (
                 <>
                   {/* URL firmada y privada: next/image no aplica. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -139,6 +139,7 @@ export default async function MyReadingsPage() {
                   issues={issues}
                   disabled={!canSubmitInPeriod(period.status)}
                   photoRequired={!reading?.current_photo_id}
+                  existingPhotoUrl={photoUrl}
                   isOpeningPeriod={!earlier}
                 />
               ) : (

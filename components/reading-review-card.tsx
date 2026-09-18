@@ -54,6 +54,8 @@ export function ReadingReviewCard({
   locked?: boolean;
 }) {
   const [pendingPhoto, setPendingPhoto] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const displayPhoto = previewUrl ?? photoUrl;
 
   async function adminSubmit(formData: FormData) {
     const file = formData.get("photo");
@@ -82,15 +84,17 @@ export function ReadingReviewCard({
         </div>
       </div>
 
-      {photoUrl ? (
+      {displayPhoto ? (
         <figure className="review-photo">
-          {/* URL firmada y privada: next/image no aplica. */}
+          {/* URL firmada o vista previa local: next/image no aplica. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={photoUrl}
+            src={displayPhoto}
             alt={`Fotografía del contador de ${serviceName} en ${floorName}`}
           />
-          <figcaption>Compara visualmente la fotografía con la lectura declarada.</figcaption>
+          {previewUrl ? null : (
+            <figcaption>Compara visualmente la fotografía con la lectura declarada.</figcaption>
+          )}
         </figure>
       ) : (
         <p className="review-photo notice notice-error">No hay fotografía.</p>
@@ -189,7 +193,7 @@ export function ReadingReviewCard({
           </label>
           <PhotoPicker
             title="Foto del contador"
-            alt={`Vista previa del contador de ${serviceName} en ${floorName}`}
+            onPreviewChange={setPreviewUrl}
           />
           <SubmitButton busy={pendingPhoto} pendingLabel="Preparando imagen…">
             Registrar
