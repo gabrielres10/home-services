@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canAccessAdmin,
+  canDeletePeriod,
   canReviewReadings,
   canSubmitReading,
   canViewPhoto,
@@ -12,6 +13,8 @@ describe("permissions", () => {
     expect(canAccessAdmin("admin")).toBe(true);
     expect(canAccessAdmin("floor_user")).toBe(false);
     expect(canReviewReadings("floor_user")).toBe(false);
+    expect(canDeletePeriod("admin")).toBe(true);
+    expect(canDeletePeriod("floor_user")).toBe(false);
   });
 
   it("un usuario de piso no ve lecturas de otro piso", () => {

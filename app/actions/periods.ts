@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/current-user";
 import { periodLabelFromDates } from "@/lib/domain/period-label";
+import { periodDeleteConfirmationError } from "@/lib/domain/period-delete";
 import { evaluatePeriodReadiness, nextReopenStatus } from "@/lib/domain/period-status";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loadCatalog, loadPreviousBySlots, hasAnyEarlierPeriod } from "@/lib/data/catalog";
@@ -12,6 +13,7 @@ import { buildPeriodConsumptions } from "@/lib/domain/period-consumption";
 import { billChargeValuesFromRows } from "@/lib/domain/bill-charges";
 import { validateBill } from "@/lib/domain/validation";
 import { toNumber } from "@/lib/format";
+import { BILLS_BUCKET, PHOTOS_BUCKET } from "@/lib/storage/paths";
 
 export async function createPeriod(formData: FormData): Promise<{ error: string } | void> {
   const admin = await requireAdmin();
@@ -217,5 +219,91 @@ export async function reopenPeriod(periodId: string): Promise<{ error: string } 
 
   revalidatePath("/admin");
   revalidatePath(`/admin/periodos/${periodId}`);
+}
+
+function uniquePaths(paths: Array<string | null | undefined>): string[] {
+  return [...new Set(paths.filter((path): path is string => Boolean(path && path.trim())))];
+}
+
+export async function deletePeriod(formData: FormData): Promise<{ error: string } | void> {
+  await requireAdmin();
+  const periodId = String(formData.get("period_id") ?? "").trim();
+  if (!periodId) {
+    return { error: "No se encontró el período." };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const { data: period, error: periodError } = await supabase
+    .from("billing_periods")
+    .select("id, label")
+    .eq("id", periodId)
+    .maybeSingle();
+
+  if (periodError || !period) {
+    return { error: "No se encontró el período." };
+  }
+
+  const blocked = periodDeleteConfirmationError({
+    confirmed: String(formData.get("confirm_delete") ?? "") === "on",
+    typedLabel: String(formData.get("confirm_label") ?? ""),
+    periodLabel: period.label,
+  });
+  if (blocked) {
+    return { error: blocked };
+  }
+
+  const { data: bill } = await supabase
+    .from("bills")
+    .select("pdf_storage_path")
+    .eq("period_id", periodId)
+    .maybeSingle();
+  const { data: listed } = await supabase.storage.from(BILLS_BUCKET).list(periodId);
+  const { data: readings } = await supabase
+    .from("meter_readings")
+    .select("id")
+    .eq("period_id", periodId);
+
+  const readingIds = (readings ?? []).map((row) => row.id);
+  const { data: photos } =
+    readingIds.length > 0
+      ? await supabase.from("reading_photos").select("storage_path").in("reading_id", readingIds)
+      : { data: [] as Array<{ storage_path: string }> };
+
+  const pdfPaths = uniquePaths([
+    bill?.pdf_storage_path,
+    ...(listed ?? []).map((file) => `${periodId}/${file.name}`),
+  ]);
+  const photoPaths = uniquePaths((photos ?? []).map((row) => row.storage_path));
+
+  if (pdfPaths.length > 0) {
+    const { error } = await supabase.storage.from(BILLS_BUCKET).remove(pdfPaths);
+    if (error) {
+      return { error: `No se pudieron borrar los archivos del recibo: ${error.message}` };
+    }
+  }
+  if (photoPaths.length > 0) {
+    const { error } = await supabase.storage.from(PHOTOS_BUCKET).remove(photoPaths);
+    if (error) {
+      return { error: `No se pudieron borrar las fotografías: ${error.message}` };
+    }
+  }
+
+  const { error: unlinkError } = await supabase
+    .from("meter_readings")
+    .update({ current_photo_id: null })
+    .eq("period_id", periodId);
+  if (unlinkError) {
+    return { error: unlinkError.message };
+  }
+
+  const { error: deleteError } = await supabase.from("billing_periods").delete().eq("id", periodId);
+  if (deleteError) {
+    return { error: deleteError.message };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/mis-lecturas");
+  revalidatePath(`/admin/periodos/${periodId}`);
+  redirect("/admin");
 }
 

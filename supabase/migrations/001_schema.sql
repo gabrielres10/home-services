@@ -296,6 +296,12 @@ begin
     return new;
   end if;
 
+  if tg_op = 'DELETE' then
+    insert into public.audit_logs (actor_id, entity_type, entity_id, action, from_data, to_data)
+    values (auth.uid(), 'billing_period', old.id, 'period.deleted', to_jsonb(old), null);
+    return old;
+  end if;
+
   if old.status is distinct from new.status then
     insert into public.audit_logs (actor_id, entity_type, entity_id, action, from_data, to_data)
     values (auth.uid(), 'billing_period', new.id, 'period.status_changed', to_jsonb(old), to_jsonb(new));
@@ -306,7 +312,7 @@ $$;
 
 drop trigger if exists trg_audit_periods on public.billing_periods;
 create trigger trg_audit_periods
-  after insert or update on public.billing_periods
+  after insert or update or delete on public.billing_periods
   for each row execute procedure public.audit_period_change();
 
 alter table public.profiles enable row level security;
@@ -374,6 +380,11 @@ create policy billing_periods_admin_update on public.billing_periods
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists billing_periods_admin_delete on public.billing_periods;
+create policy billing_periods_admin_delete on public.billing_periods
+  for delete to authenticated
+  using (public.is_admin());
+
 drop policy if exists bills_admin_select on public.bills;
 create policy bills_admin_select on public.bills
   for select to authenticated
@@ -428,6 +439,11 @@ create policy readings_update on public.meter_readings
     )
   );
 
+drop policy if exists readings_admin_delete on public.meter_readings;
+create policy readings_admin_delete on public.meter_readings
+  for delete to authenticated
+  using (public.is_admin());
+
 drop policy if exists photos_select on public.reading_photos;
 create policy photos_select on public.reading_photos
   for select to authenticated
@@ -454,6 +470,11 @@ create policy photos_insert on public.reading_photos
         and r.status <> 'approved'
     )
   );
+
+drop policy if exists photos_admin_delete on public.reading_photos;
+create policy photos_admin_delete on public.reading_photos
+  for delete to authenticated
+  using (public.is_admin());
 
 drop policy if exists audit_logs_admin_select on public.audit_logs;
 create policy audit_logs_admin_select on public.audit_logs
@@ -540,3 +561,13 @@ create policy photos_storage_insert on storage.objects
       or (storage.foldername(name))[1] = public.user_floor_id()::text
     )
   );
+
+drop policy if exists bills_storage_delete on storage.objects;
+create policy bills_storage_delete on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'bills' and public.is_admin());
+
+drop policy if exists photos_storage_delete on storage.objects;
+create policy photos_storage_delete on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'reading-photos' and public.is_admin());

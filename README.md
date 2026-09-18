@@ -17,6 +17,7 @@ Como administrador puedes:
 7. Copiar el consumo de alcantarillado desde el de agua.
 8. Consultar períodos anteriores.
 9. Ver cuánto paga cada piso y cerrar el período.
+10. Eliminar un período (hay que escribir su nombre y confirmar; no se puede deshacer).
 
 Como usuario de un piso con contador (Piso 1 o Piso 2) puedes:
 
@@ -276,6 +277,7 @@ No hace falta encadenar períodos hacia atrás de forma indefinida.
 4. El administrador compara foto y valor. Puede corregir (queda `submitted_value` original, `value` vigente y una fila de auditoría), aprobar o rechazar con motivo.
 5. Cuando las 4 lecturas están aprobadas, hay lectura anterior (salvo en el período inicial), los consumos del Piso 3 no son negativos y el recibo está completo, el administrador marca el período **listo**.
 6. En un período de facturación se ve la liquidación por piso (energía, acueducto y alcantarillado, otros servicios + AP). El administrador puede **cerrar** el período. Cerrar bloquea cambios al recibo y a las lecturas; reabrir pasa de cerrado a listo y de listo a abierto.
+7. El administrador puede **eliminar** un período si escribe su nombre y confirma. Se borra el recibo, las lecturas y las fotos.
 
 Avisos visibles (no se ocultan):
 

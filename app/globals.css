@@ -1073,6 +1073,14 @@ details[open] > .archive-toggle::before {
   padding-top: 0.4rem;
 }
 
+.danger-panel {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.95rem 1rem 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--line));
+  background: color-mix(in srgb, var(--danger-soft) 45%, var(--paper));
+}
+
 .muted {
   color: var(--mute);
 }

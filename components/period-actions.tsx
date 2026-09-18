@@ -1,17 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
-import { closePeriod, markPeriodReady, reopenPeriod } from "@/app/actions/periods";
+import { closePeriod, deletePeriod, markPeriodReady, reopenPeriod } from "@/app/actions/periods";
 import { SubmitButton } from "@/components/submit-button";
 
 export function PeriodActions({
   periodId,
+  periodLabel,
   status,
   canMarkReady,
   canClose,
   closeBlockedMessage,
 }: {
   periodId: string;
+  periodLabel: string;
   status: "open" | "ready" | "closed";
   canMarkReady: boolean;
   canClose: boolean;
@@ -100,6 +103,67 @@ export function PeriodActions({
           </div>
         </ActionForm>
       ) : null}
+      <DeletePeriodForm periodId={periodId} periodLabel={periodLabel} />
     </div>
+  );
+}
+
+function DeletePeriodForm({
+  periodId,
+  periodLabel,
+}: {
+  periodId: string;
+  periodLabel: string;
+}) {
+  const [confirming, setConfirming] = useState(false);
+
+  if (!confirming) {
+    return (
+      <div className="danger-panel">
+        <p className="muted text-[0.92rem]">
+          Si este período sobra o quedó mal creado, puedes eliminarlo. Es
+          irreversible.
+        </p>
+        <div className="action-bar">
+          <button type="button" className="btn btn-reject" onClick={() => setConfirming(true)}>
+            Eliminar período
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ActionForm action={deletePeriod} className="danger-panel stack-md">
+      <input type="hidden" name="period_id" value={periodId} />
+      <p className="notice notice-warning">
+        Se borra {periodLabel}: el recibo, las lecturas y las fotos. No se puede
+        deshacer. Si hay períodos después, su consumo puede quedar mal porque
+        usaban estas lecturas como anterior.
+      </p>
+      <label className="field">
+        <span className="field-label">Escribe el nombre del período para confirmar</span>
+        <input
+          name="confirm_label"
+          required
+          autoComplete="off"
+          spellCheck={false}
+          className="input-control"
+          placeholder={periodLabel}
+        />
+      </label>
+      <label className="flex items-start gap-2 text-[0.9rem]">
+        <input type="checkbox" name="confirm_delete" required className="mt-1" />
+        <span>Entiendo que esta acción no se puede deshacer.</span>
+      </label>
+      <div className="action-bar">
+        <SubmitButton variant="reject" pendingLabel="Eliminando…">
+          Eliminar de verdad
+        </SubmitButton>
+        <button type="button" className="btn btn-ghost" onClick={() => setConfirming(false)}>
+          Cancelar
+        </button>
+      </div>
+    </ActionForm>
   );
 }

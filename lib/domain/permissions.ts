@@ -8,6 +8,10 @@ export function canManagePeriods(role: UserRole): boolean {
   return role === "admin";
 }
 
+export function canDeletePeriod(role: UserRole): boolean {
+  return role === "admin";
+}
+
 export function canViewBill(role: UserRole): boolean {
   return role === "admin";
 }

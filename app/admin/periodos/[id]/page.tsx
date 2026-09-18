@@ -349,6 +349,7 @@ export default async function PeriodDetailPage({
             <IssueList issues={readiness.blockers} />
             <PeriodActions
               periodId={period.id}
+              periodLabel={period.label}
               status={period.status}
               canMarkReady={readiness.ready}
               canClose={canClose}
