@@ -79,7 +79,7 @@ Tablas principales (definidas en `supabase/migrations/001_schema.sql`):
 | `floor_service_meters` | Qué combinaciones piso/servicio tienen contador. |
 | `floor_memberships` | Usuario de piso → un piso. |
 | `billing_periods` | Período con `label`, `starts_on`, `ends_on`, `status` (`open`, `ready`, `closed`). |
-| `bills` | Recibo 1:1 con el período y ruta del PDF. |
+| `bills` | Recibo 1:1 con el período, PDF y subtotal de otros servicios + alumbrado público. |
 | `bill_service_totals` | Consumo total por servicio en el recibo (kWh / m³). |
 | `bill_service_charges` | Importes en pesos por renglón del recibo (energía, agua, alcantarillado). |
 | `meter_readings` | Lectura vigente por período + piso + servicio. Guarda `submitted_value` (original) y `value` (vigente). Estados: `pending`, `approved`, `rejected`. |

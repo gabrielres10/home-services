@@ -13,11 +13,13 @@ export type ExtractedBillDraft = {
   source: "manual" | "pdf";
   totals: BillServiceTotalInput[];
   charges: BillChargeInput[];
+  otherServicesApSubtotal: number | null;
 };
 
 export type ManualBillInput = {
   totals: BillServiceTotalInput[];
   charges: BillChargeInput[];
+  otherServicesApSubtotal: number | null;
 };
 
 export interface BillExtractor {
@@ -36,6 +38,7 @@ export class ManualBillExtractor implements BillExtractor {
       source: "manual",
       totals: manual.totals,
       charges: manual.charges,
+      otherServicesApSubtotal: manual.otherServicesApSubtotal,
     };
   }
 }

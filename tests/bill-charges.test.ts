@@ -96,6 +96,7 @@ describe("validateBill", () => {
       sewer: 50,
       hasPdf: true,
       charges: emptyBillChargeValues(),
+      otherServicesApSubtotal: 1000,
     });
     expect(issues.some((issue) => issue.code === "bill.charge_missing")).toBe(true);
   });
@@ -107,7 +108,22 @@ describe("validateBill", () => {
       sewer: 50,
       hasPdf: true,
       charges: filledCharges(1000),
+      otherServicesApSubtotal: 0,
     });
     expect(issues.filter((issue) => issue.severity === "error")).toEqual([]);
+  });
+
+  it("exige el subtotal de otros servicios + AP", () => {
+    const issues = validateBill({
+      energy: 100,
+      water: 50,
+      sewer: 50,
+      hasPdf: true,
+      charges: filledCharges(1000),
+      otherServicesApSubtotal: null,
+    });
+    expect(issues.some((issue) => issue.code === "bill.other_services_ap_missing")).toBe(
+      true,
+    );
   });
 });

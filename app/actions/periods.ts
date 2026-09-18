@@ -10,6 +10,7 @@ import { loadCatalog, loadPreviousBySlots, hasAnyEarlierPeriod } from "@/lib/dat
 import { buildPeriodConsumptions } from "@/lib/domain/period-consumption";
 import { billChargeValuesFromRows } from "@/lib/domain/bill-charges";
 import { validateBill } from "@/lib/domain/validation";
+import { toNumber } from "@/lib/format";
 
 export async function createPeriod(formData: FormData): Promise<{ error: string } | void> {
   const admin = await requireAdmin();
@@ -124,6 +125,7 @@ export async function markPeriodReady(periodId: string): Promise<{ error: string
     sewer: totalsByCode.get("alcantarillado") ?? null,
     hasPdf: Boolean(bill?.pdf_storage_path),
     charges: billChargeValuesFromRows(catalog.services, billCharges ?? []),
+    otherServicesApSubtotal: toNumber(bill?.other_services_ap_subtotal ?? null),
   });
 
   const readiness = evaluatePeriodReadiness({

@@ -29,11 +29,13 @@ export function BillForm({
   services,
   notes,
   hasPdf,
+  otherServicesApSubtotal,
 }: {
   periodId: string;
   services: ServiceField[];
   notes: string;
   hasPdf: boolean;
+  otherServicesApSubtotal: string;
 }) {
   async function action(formData: FormData) {
     const pdf = formData.get("pdf");
@@ -130,6 +132,26 @@ export function BillForm({
           );
         })}
       </div>
+      <fieldset className="space-y-3 rounded border border-stone-200 bg-stone-50 p-4">
+        <legend className="px-1 text-sm font-medium text-stone-900">
+          Toda la vivienda
+        </legend>
+        <label className="block text-sm">
+          <span className="mb-1 block text-stone-700">
+            Subtotal otros servicios + AP (alumbrado público)
+          </span>
+          <input
+            name="other_services_ap_subtotal"
+            inputMode="decimal"
+            defaultValue={otherServicesApSubtotal}
+            required
+            className="w-full rounded border border-stone-300 bg-white px-3 py-2"
+          />
+        </label>
+        <p className="text-xs text-stone-500">
+          Un solo valor del recibo para toda la casa. AP significa alumbrado público.
+        </p>
+      </fieldset>
       <label className="block text-sm">
         <span className="mb-1 block text-stone-700">Notas</span>
         <textarea

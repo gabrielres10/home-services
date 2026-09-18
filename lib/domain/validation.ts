@@ -293,8 +293,9 @@ export function validateBill(input: {
   sewer: number | null;
   hasPdf: boolean;
   charges: BillChargeValueMap;
+  otherServicesApSubtotal: number | null;
 }): ValidationIssue[] {
-  return [
+  const issues = [
     ...validateBillTotals({
       energy: input.energy,
       water: input.water,
@@ -303,6 +304,16 @@ export function validateBill(input: {
     }),
     ...validateBillCharges(input.charges),
   ];
+
+  if (input.otherServicesApSubtotal === null) {
+    issues.push({
+      code: "bill.other_services_ap_missing",
+      severity: "error",
+      message: "Falta el subtotal de otros servicios + AP (alumbrado público).",
+    });
+  }
+
+  return issues;
 }
 
 export function unmeteredConsumptionIssue(

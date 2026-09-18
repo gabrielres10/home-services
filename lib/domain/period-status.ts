@@ -59,7 +59,7 @@ export function evaluatePeriodReadiness(input: ReadinessInput): ReadinessResult 
     blockers.push({
       code: "period.bill_incomplete",
       severity: "error",
-      message: "El recibo aún no tiene PDF, consumos totales e importes de todos los servicios.",
+      message: "El recibo aún no tiene PDF, consumos, importes por servicio y subtotal de otros servicios + AP.",
     });
   }
 

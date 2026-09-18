@@ -57,9 +57,14 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
     });
   });
 
+  const otherServicesApParsed = parseMoneyAmount(
+    String(formData.get("other_services_ap_subtotal") ?? ""),
+  );
+
   const extracted = await extractBillDraft(null, {
     totals: manualTotals,
     charges: manualCharges,
+    otherServicesApSubtotal: otherServicesApParsed.ok ? otherServicesApParsed.value : null,
   });
   const supabase = await createServerSupabaseClient();
 
@@ -89,6 +94,14 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
   if (extracted.charges.some((item) => item.amount === null)) {
     return { error: "Introduce todos los importes en dinero de cada servicio." };
   }
+  if (!otherServicesApParsed.ok) {
+    return {
+      error: `Subtotal otros servicios + AP. ${otherServicesApParsed.issue.message}`,
+    };
+  }
+  if (extracted.otherServicesApSubtotal === null) {
+    return { error: "Introduce el subtotal de otros servicios + AP (alumbrado público)." };
+  }
 
   const { data: bill, error: billError } = existing
     ? await supabase
@@ -98,6 +111,7 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
           uploaded_by: admin.id,
           uploaded_at: new Date().toISOString(),
           notes: notes || null,
+          other_services_ap_subtotal: extracted.otherServicesApSubtotal,
         })
         .eq("id", existing.id)
         .select("id")
@@ -110,6 +124,7 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
           uploaded_by: admin.id,
           uploaded_at: new Date().toISOString(),
           notes: notes || null,
+          other_services_ap_subtotal: extracted.otherServicesApSubtotal,
         })
         .select("id")
         .single();

@@ -151,6 +151,7 @@ export type Database = {
           uploaded_by: string | null;
           uploaded_at: string | null;
           notes: string | null;
+          other_services_ap_subtotal: number | null;
         };
         Insert: {
           id?: string;
@@ -159,12 +160,14 @@ export type Database = {
           uploaded_by?: string | null;
           uploaded_at?: string | null;
           notes?: string | null;
+          other_services_ap_subtotal?: number | null;
         };
         Update: {
           pdf_storage_path?: string | null;
           uploaded_by?: string | null;
           uploaded_at?: string | null;
           notes?: string | null;
+          other_services_ap_subtotal?: number | null;
         };
         Relationships: [];
       };

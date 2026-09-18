@@ -22,9 +22,11 @@ describe("BillExtractor", () => {
     const draft = await extractBillDraft(null, {
       totals: [{ serviceCode: "agua", totalConsumption: 100 }],
       charges: [{ serviceCode: "agua", chargeCode: "cargo_basico", amount: 15000 }],
+      otherServicesApSubtotal: 42000,
     }, new ManualBillExtractor());
     expect(draft.source).toBe("manual");
     expect(draft.totals[0]?.totalConsumption).toBe(100);
     expect(draft.charges[0]?.amount).toBe(15000);
+    expect(draft.otherServicesApSubtotal).toBe(42000);
   });
 });

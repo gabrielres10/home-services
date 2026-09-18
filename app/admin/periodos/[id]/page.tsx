@@ -99,6 +99,7 @@ export default async function PeriodDetailPage({
             periodId={period.id}
             notes={bill?.notes ?? ""}
             hasPdf={Boolean(bill?.pdf_storage_path)}
+            otherServicesApSubtotal={numericOrEmpty(bill?.other_services_ap_subtotal ?? null)}
             services={catalog.services.map((service) => ({
               code: service.code,
               name: service.name,
@@ -147,6 +148,12 @@ export default async function PeriodDetailPage({
                 </tbody>
               </table>
             </div>
+          ) : null}
+          {bill?.other_services_ap_subtotal != null ? (
+            <p className="rounded border border-stone-200 bg-white px-3 py-2 text-sm">
+              Subtotal otros servicios + AP (alumbrado público):{" "}
+              <strong>{formatMoney(Number(bill.other_services_ap_subtotal))}</strong>
+            </p>
           ) : null}
           {pdfUrl ? (
             <iframe

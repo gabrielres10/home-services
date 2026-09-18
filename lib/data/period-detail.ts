@@ -153,6 +153,7 @@ export async function loadPeriodDetail(periodId: string) {
     sewer: totalsByCode.get("alcantarillado") ?? null,
     hasPdf: Boolean(bill?.pdf_storage_path),
     charges: chargeValues,
+    otherServicesApSubtotal: toNumber(bill?.other_services_ap_subtotal ?? null),
   });
 
   const pdfUrl = await signedUrl(BILLS_BUCKET, bill?.pdf_storage_path ?? null);
