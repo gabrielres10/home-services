@@ -1,38 +1,38 @@
+import { groupIssuesForDisplay } from "@/lib/domain/issue-display";
 import type { ValidationIssue } from "@/lib/domain/types";
 
-function uniqueIssues(issues: ValidationIssue[]): ValidationIssue[] {
-  const seen = new Set<string>();
-  const unique: ValidationIssue[] = [];
-  for (const issue of issues) {
-    const key = `${issue.code}:${issue.message}`;
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    unique.push(issue);
-  }
-  return unique;
-}
-
 export function IssueList({ issues }: { issues: ValidationIssue[] }) {
-  const items = uniqueIssues(issues);
-  if (items.length === 0) {
+  const notices = groupIssuesForDisplay(issues);
+  if (notices.length === 0) {
     return null;
   }
 
   return (
     <ul className="notice-list">
-      {items.map((issue, index) => (
+      {notices.map((notice, index) => (
         <li
-          key={`${index}:${issue.code}`}
+          key={`${index}:${notice.title}`}
           className={
-            issue.severity === "error" ? "notice notice-error" : "notice notice-warning"
+            notice.severity === "error" ? "notice notice-error" : "notice notice-warning"
           }
         >
-          <span className="font-semibold">
-            {issue.severity === "error" ? "Error: " : "Aviso: "}
-          </span>
-          {issue.message}
+          {notice.items.length === 0 ? (
+            <>
+              <span className="font-semibold">
+                {notice.severity === "error" ? "Error: " : "Aviso: "}
+              </span>
+              {notice.title}
+            </>
+          ) : (
+            <>
+              <p className="notice-lead">{notice.title}</p>
+              <ul className="notice-checks">
+                {notice.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </>
+          )}
         </li>
       ))}
     </ul>

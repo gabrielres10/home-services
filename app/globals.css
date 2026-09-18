@@ -630,6 +630,20 @@ form > .notice:first-child {
   list-style: none;
 }
 
+.notice-lead {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+}
+
+.notice-checks {
+  margin: 0;
+  padding: 0 0 0 1.15rem;
+}
+
+.notice-checks li + li {
+  margin-top: 0.18rem;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
