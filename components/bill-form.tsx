@@ -2,6 +2,12 @@
 
 import { ActionForm } from "@/components/action-form";
 import { saveBill } from "@/app/actions/bills";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import {
+  BILLS_BUCKET,
+  MAX_BILL_PDF_BYTES,
+  billPdfPath,
+} from "@/lib/storage/paths";
 
 type ServiceField = {
   code: string;
@@ -21,8 +27,35 @@ export function BillForm({
   notes: string;
   hasPdf: boolean;
 }) {
+  async function action(formData: FormData) {
+    const pdf = formData.get("pdf");
+    formData.delete("pdf");
+
+    if (pdf instanceof File && pdf.size > 0) {
+      if (pdf.type !== "application/pdf") {
+        return { error: "El recibo debe ser un archivo PDF." };
+      }
+      if (pdf.size > MAX_BILL_PDF_BYTES) {
+        return { error: "El PDF no puede superar 10 MB." };
+      }
+
+      const path = billPdfPath(periodId);
+      const supabase = createBrowserSupabaseClient();
+      const { error } = await supabase.storage.from(BILLS_BUCKET).upload(path, pdf, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+      if (error) {
+        return { error: `No se pudo guardar el PDF: ${error.message}` };
+      }
+      formData.set("pdf_storage_path", path);
+    }
+
+    return saveBill(formData);
+  }
+
   return (
-    <ActionForm action={saveBill} className="space-y-4">
+    <ActionForm action={action} className="space-y-4">
       <input type="hidden" name="period_id" value={periodId} />
       <label className="block text-sm">
         <span className="mb-1 block text-stone-700">

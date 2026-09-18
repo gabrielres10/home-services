@@ -205,7 +205,10 @@ export async function loadPeriodDetail(periodId: string) {
         });
       }
 
-      issues.push(...(consumptionLine?.issues ?? []));
+      const existingCodes = new Set(issues.map((issue) => issue.code));
+      issues.push(
+        ...(consumptionLine?.issues ?? []).filter((issue) => !existingCodes.has(issue.code)),
+      );
 
       const readingAudits = reading
         ? (audits ?? []).filter((item) => item.entity_id === reading.id)

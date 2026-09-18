@@ -1,15 +1,30 @@
 import type { ValidationIssue } from "@/lib/domain/types";
 
+function uniqueIssues(issues: ValidationIssue[]): ValidationIssue[] {
+  const seen = new Set<string>();
+  const unique: ValidationIssue[] = [];
+  for (const issue of issues) {
+    const key = `${issue.code}:${issue.message}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    unique.push(issue);
+  }
+  return unique;
+}
+
 export function IssueList({ issues }: { issues: ValidationIssue[] }) {
-  if (issues.length === 0) {
+  const items = uniqueIssues(issues);
+  if (items.length === 0) {
     return null;
   }
 
   return (
     <ul className="space-y-1">
-      {issues.map((issue) => (
+      {items.map((issue, index) => (
         <li
-          key={issue.code + issue.message}
+          key={`${index}:${issue.code}`}
           className={
             issue.severity === "error"
               ? "rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"

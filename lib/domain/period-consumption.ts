@@ -121,7 +121,7 @@ export function buildPeriodConsumptions(input: {
         issues.push({
           code: "reading.missing_previous",
           severity: "warning",
-          message: "No hay lectura anterior aprobada. El consumo no es liquidable.",
+          message: `${floor.name} / ${service.name}: no hay lectura anterior aprobada. El consumo no es liquidable.`,
         });
       }
 

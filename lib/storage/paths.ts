@@ -1,5 +1,6 @@
 export const BILLS_BUCKET = "bills";
 export const PHOTOS_BUCKET = "reading-photos";
+export const MAX_BILL_PDF_BYTES = 10 * 1024 * 1024;
 
 export function billPdfPath(periodId: string): string {
   return `${periodId}/recibo.pdf`;

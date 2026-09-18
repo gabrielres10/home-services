@@ -6,13 +6,13 @@ import { requireAdmin } from "@/lib/auth/current-user";
 import { parseReadingValue } from "@/lib/domain/validation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loadCatalog } from "@/lib/data/catalog";
-import { BILLS_BUCKET, billPdfPath } from "@/lib/storage/paths";
+import { billPdfPath } from "@/lib/storage/paths";
 
 export async function saveBill(formData: FormData): Promise<{ error: string } | void> {
   const admin = await requireAdmin();
   const periodId = String(formData.get("period_id") ?? "");
   const notes = String(formData.get("notes") ?? "").trim();
-  const pdf = formData.get("pdf");
+  const uploadedPath = String(formData.get("pdf_storage_path") ?? "").trim();
 
   if (!periodId) {
     return { error: "Falta el período." };
@@ -27,12 +27,7 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
     };
   });
 
-  const file = pdf instanceof File && pdf.size > 0 ? pdf : null;
-  if (file && file.type !== "application/pdf") {
-    return { error: "El recibo debe ser un archivo PDF." };
-  }
-
-  const extracted = await extractBillDraft(file, { totals: manualTotals });
+  const extracted = await extractBillDraft(null, { totals: manualTotals });
   const supabase = await createServerSupabaseClient();
 
   const { data: existing } = await supabase
@@ -41,21 +36,12 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
     .eq("period_id", periodId)
     .maybeSingle();
 
-  let pdfPath = existing?.pdf_storage_path ?? null;
-  if (file) {
-    pdfPath = billPdfPath(periodId);
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const { error: uploadError } = await supabase.storage
-      .from(BILLS_BUCKET)
-      .upload(pdfPath, buffer, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-    if (uploadError) {
-      return { error: `No se pudo guardar el PDF: ${uploadError.message}` };
-    }
+  const expectedPath = billPdfPath(periodId);
+  if (uploadedPath && uploadedPath !== expectedPath) {
+    return { error: "La ruta del PDF no es válida." };
   }
 
+  const pdfPath = uploadedPath || existing?.pdf_storage_path || null;
   if (!pdfPath) {
     return { error: "Debes cargar el PDF del recibo." };
   }
