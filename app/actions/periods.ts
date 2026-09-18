@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/current-user";
+import { periodLabelFromDates } from "@/lib/domain/period-label";
 import { evaluatePeriodReadiness } from "@/lib/domain/period-status";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loadCatalog, loadPreviousBySlots } from "@/lib/data/catalog";
@@ -11,15 +12,19 @@ import { validateBillTotals } from "@/lib/domain/validation";
 
 export async function createPeriod(formData: FormData): Promise<{ error: string } | void> {
   const admin = await requireAdmin();
-  const label = String(formData.get("label") ?? "").trim();
   const startsOn = String(formData.get("starts_on") ?? "");
   const endsOn = String(formData.get("ends_on") ?? "");
 
-  if (!label || !startsOn || !endsOn) {
-    return { error: "Completa el nombre y las fechas del período." };
+  if (!startsOn || !endsOn) {
+    return { error: "Completa las fechas inicial y final del período." };
   }
   if (startsOn > endsOn) {
     return { error: "La fecha inicial no puede ser posterior a la fecha final." };
+  }
+
+  const label = periodLabelFromDates(startsOn, endsOn);
+  if (!label) {
+    return { error: "Las fechas del período no son válidas." };
   }
 
   const supabase = await createServerSupabaseClient();
@@ -36,7 +41,7 @@ export async function createPeriod(formData: FormData): Promise<{ error: string 
 
   if (error) {
     if (error.code === "23505") {
-      return { error: "Ya existe un período con ese nombre." };
+      return { error: "Ya existe un período con esas fechas." };
     }
     return { error: error.message };
   }
