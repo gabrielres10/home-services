@@ -5,14 +5,26 @@ import { ActionForm } from "@/components/action-form";
 import { createPeriod } from "@/app/actions/periods";
 import { periodLabelFromDates } from "@/lib/domain/period-label";
 import { SubmitButton } from "@/components/submit-button";
+import { DateInput } from "@/components/date-input";
 
-export function PeriodForm({ isFirst = false }: { isFirst?: boolean }) {
-  const [startsOn, setStartsOn] = useState("");
-  const [endsOn, setEndsOn] = useState("");
+export function PeriodForm({
+  isFirst = false,
+  lastPeriodLabel = null,
+  suggestedStartsOn = null,
+  suggestedEndsOn = null,
+}: {
+  isFirst?: boolean;
+  lastPeriodLabel?: string | null;
+  suggestedStartsOn?: string | null;
+  suggestedEndsOn?: string | null;
+}) {
+  const [startsOn, setStartsOn] = useState(suggestedStartsOn ?? "");
+  const [endsOn, setEndsOn] = useState(suggestedEndsOn ?? "");
   const label = useMemo(
     () => periodLabelFromDates(startsOn, endsOn),
     [startsOn, endsOn],
   );
+  const hasSuggestion = Boolean(suggestedStartsOn && suggestedEndsOn && lastPeriodLabel);
 
   return (
     <ActionForm action={createPeriod} className="stack-lg">
@@ -21,6 +33,12 @@ export function PeriodForm({ isFirst = false }: { isFirst?: boolean }) {
           Es el primer período de la casa. Usa las fechas de las lecturas más
           antiguas que tengas (pueden ser de una planilla). Eso deja la referencia.
           El recibo se liquida en el período siguiente.
+        </p>
+      ) : hasSuggestion ? (
+        <p className="notice notice-warning">
+          Sugiero el día siguiente al último período ({lastPeriodLabel}) y 30 días
+          después. Es solo una guía: revisa que coincidan con las lecturas y el
+          recibo que vas a registrar. EMCALI no usa un mes calendario fijo.
         </p>
       ) : (
         <p className="notice">
@@ -31,13 +49,11 @@ export function PeriodForm({ isFirst = false }: { isFirst?: boolean }) {
       )}
       <label className="field">
         <span className="field-label">Fecha inicial</span>
-        <input
+        <DateInput
           name="starts_on"
-          type="date"
           required
           value={startsOn}
           onChange={(event) => setStartsOn(event.target.value)}
-          className="input-control"
         />
         <span className="help-line">
           El día de la lectura con la que empieza este período.
@@ -45,13 +61,11 @@ export function PeriodForm({ isFirst = false }: { isFirst?: boolean }) {
       </label>
       <label className="field">
         <span className="field-label">Fecha final</span>
-        <input
+        <DateInput
           name="ends_on"
-          type="date"
           required
           value={endsOn}
           onChange={(event) => setEndsOn(event.target.value)}
-          className="input-control"
         />
         <span className="help-line">
           El día de la lectura con la que termina. Suele ser el del recibo.

@@ -53,3 +53,32 @@ export function periodLabelFromDates(startsOn: string, endsOn: string): string |
   }
   return `${start.year} ${formatMonthDay(start)} a ${end.year} ${formatMonthDay(end)}`;
 }
+
+export const SUGGESTED_PERIOD_LENGTH_DAYS = 30;
+
+export function addCalendarDays(iso: string, days: number): string | null {
+  const parsed = parseIsoDate(iso);
+  if (!parsed) {
+    return null;
+  }
+  const date = new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day + days));
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function suggestNextPeriodDates(lastEndsOn: string): {
+  startsOn: string;
+  endsOn: string;
+} | null {
+  const startsOn = addCalendarDays(lastEndsOn, 1);
+  if (!startsOn) {
+    return null;
+  }
+  const endsOn = addCalendarDays(startsOn, SUGGESTED_PERIOD_LENGTH_DAYS);
+  if (!endsOn) {
+    return null;
+  }
+  return { startsOn, endsOn };
+}

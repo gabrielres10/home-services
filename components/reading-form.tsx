@@ -11,6 +11,7 @@ import type { ValidationIssue } from "@/lib/domain/types";
 import { IssueList } from "@/components/issue-list";
 import { PhotoPicker } from "@/components/photo-picker";
 import { SubmitButton } from "@/components/submit-button";
+import { DateInput } from "@/components/date-input";
 
 export function ReadingForm({
   periodId,
@@ -100,13 +101,7 @@ export function ReadingForm({
         </label>
         <label className="field">
           <span className="field-label">Fecha de lectura</span>
-          <input
-            name="reading_date"
-            type="date"
-            required
-            defaultValue={readingDate}
-            className="input-control"
-          />
+          <DateInput name="reading_date" required defaultValue={readingDate} />
         </label>
         <PhotoPicker
           required={photoRequired}

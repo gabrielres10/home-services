@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { periodLabelFromDates } from "@/lib/domain/period-label";
+import {
+  addCalendarDays,
+  periodLabelFromDates,
+  suggestNextPeriodDates,
+} from "@/lib/domain/period-label";
 
 describe("periodLabelFromDates", () => {
   it("mismo año: (2026) FEB 11 a MAR 12", () => {
@@ -29,5 +33,35 @@ describe("periodLabelFromDates", () => {
   it("rechaza fechas inválidas", () => {
     expect(periodLabelFromDates("", "2026-03-12")).toBeNull();
     expect(periodLabelFromDates("11/02/2026", "2026-03-12")).toBeNull();
+  });
+});
+
+describe("suggestNextPeriodDates", () => {
+  it("empieza al día siguiente del último fin y suma 30 días", () => {
+    expect(suggestNextPeriodDates("2026-03-11")).toEqual({
+      startsOn: "2026-03-12",
+      endsOn: "2026-04-11",
+    });
+    expect(suggestNextPeriodDates("2026-04-10")).toEqual({
+      startsOn: "2026-04-11",
+      endsOn: "2026-05-11",
+    });
+  });
+
+  it("cruza de año y respeta febrero bisiesto", () => {
+    expect(suggestNextPeriodDates("2025-12-15")).toEqual({
+      startsOn: "2025-12-16",
+      endsOn: "2026-01-15",
+    });
+    expect(addCalendarDays("2024-02-10", 1)).toBe("2024-02-11");
+    expect(suggestNextPeriodDates("2024-01-31")).toEqual({
+      startsOn: "2024-02-01",
+      endsOn: "2024-03-02",
+    });
+  });
+
+  it("rechaza un fin inválido", () => {
+    expect(suggestNextPeriodDates("")).toBeNull();
+    expect(suggestNextPeriodDates("11/03/2026")).toBeNull();
   });
 });

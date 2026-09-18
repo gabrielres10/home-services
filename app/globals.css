@@ -589,6 +589,15 @@ input[type="file"].input-control:not(:disabled) {
   cursor: pointer;
 }
 
+input[type="date"].input-control::-webkit-datetime-edit,
+input[type="date"].input-control::-webkit-datetime-edit-fields-wrapper,
+input[type="date"].input-control::-webkit-datetime-edit-text,
+input[type="date"].input-control::-webkit-datetime-edit-month-field,
+input[type="date"].input-control::-webkit-datetime-edit-day-field,
+input[type="date"].input-control::-webkit-datetime-edit-year-field {
+  pointer-events: none;
+}
+
 input[type="checkbox"] {
   width: 0.95rem;
   height: 0.95rem;

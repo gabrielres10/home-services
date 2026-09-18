@@ -11,6 +11,7 @@ import { IssueList } from "@/components/issue-list";
 import { ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import { PhotoPicker } from "@/components/photo-picker";
 import { NumericInput } from "@/components/numeric-input";
+import { DateInput } from "@/components/date-input";
 import { SubmitButton } from "@/components/submit-button";
 import type { ValidationIssue } from "@/lib/domain/types";
 import type { ReadingStatus } from "@/lib/domain/types";
@@ -196,13 +197,7 @@ export function ReadingReviewCard({
             </label>
             <label className="field">
               <span className="field-label">Fecha de lectura</span>
-              <input
-                name="reading_date"
-                type="date"
-                required
-                defaultValue={readingDate}
-                className="input-control"
-              />
+              <DateInput name="reading_date" required defaultValue={readingDate} />
             </label>
           </div>
           <PhotoPicker
