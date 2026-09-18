@@ -43,17 +43,20 @@ export type Database = {
           id: string;
           code: string;
           name: string;
+          occupant_name: string;
           sort_order: number;
         };
         Insert: {
           id?: string;
           code: string;
           name: string;
+          occupant_name: string;
           sort_order: number;
         };
         Update: {
           code?: string;
           name?: string;
+          occupant_name?: string;
           sort_order?: number;
         };
         Relationships: [];

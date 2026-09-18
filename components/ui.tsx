@@ -84,12 +84,14 @@ export function FloorBand({
   id,
   tone,
   name,
+  occupant,
   status,
   children,
 }: {
   id?: string;
   tone: 1 | 2 | 3;
   name: string;
+  occupant?: string | null;
   status?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -97,7 +99,10 @@ export function FloorBand({
     <section id={id} className={`floor-band floor-band-${tone}`}>
       <header className="floor-band-head">
         <p className="kicker">Empieza {name}</p>
-        <h3 className="floor-band-title">{name}</h3>
+        <h3 className="floor-band-title">
+          {name}
+          {occupant ? <span className="floor-band-occupant">{occupant}</span> : null}
+        </h3>
         {status}
       </header>
       {children}

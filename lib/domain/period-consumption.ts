@@ -1,3 +1,4 @@
+import { floorDisplayName } from "./floors";
 import {
   consumptionFromApprovedReadings,
   unmeteredFloorConsumption,
@@ -9,6 +10,7 @@ export type CatalogFloor = {
   id: string;
   code: string;
   name: string;
+  occupantName: string;
   sortOrder: number;
 };
 
@@ -121,7 +123,7 @@ export function buildPeriodConsumptions(input: {
       if (result.status === "missing_previous" && currentApproved !== null) {
         issues.push(
           previousReadingIssue(!input.isOpeningPeriod, {
-            floorName: floor.name,
+            floorName: floorDisplayName(floor.name, floor.occupantName),
             serviceName: service.name,
           }),
         );
@@ -130,7 +132,7 @@ export function buildPeriodConsumptions(input: {
       lines.push({
         floorId: floor.id,
         floorCode: floor.code,
-        floorName: floor.name,
+        floorName: floorDisplayName(floor.name, floor.occupantName),
         serviceId: service.id,
         serviceCode: service.code,
         serviceName: service.name,
@@ -151,7 +153,7 @@ export function buildPeriodConsumptions(input: {
 
     for (const floor of unmeteredFloors) {
       const negativeIssue = unmeteredConsumptionIssue(
-        floor.name,
+        floorDisplayName(floor.name, floor.occupantName),
         service.name,
         difference,
       );
@@ -162,7 +164,7 @@ export function buildPeriodConsumptions(input: {
       lines.push({
         floorId: floor.id,
         floorCode: floor.code,
-        floorName: floor.name,
+        floorName: floorDisplayName(floor.name, floor.occupantName),
         serviceId: service.id,
         serviceCode: service.code,
         serviceName: service.name,
@@ -192,7 +194,7 @@ export function buildPeriodConsumptions(input: {
       lines.push({
         floorId: floor.id,
         floorCode: floor.code,
-        floorName: floor.name,
+        floorName: floorDisplayName(floor.name, floor.occupantName),
         serviceId: service.id,
         serviceCode: service.code,
         serviceName: service.name,

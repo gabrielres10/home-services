@@ -10,12 +10,12 @@ const ROLES = {
   "piso-1": {
     role: "floor_user",
     floorCode: "piso-1",
-    defaultName: "Responsable Piso 1",
+    defaultName: "Nasly",
   },
   "piso-2": {
     role: "floor_user",
     floorCode: "piso-2",
-    defaultName: "Responsable Piso 2",
+    defaultName: "Lucy",
   },
 };
 

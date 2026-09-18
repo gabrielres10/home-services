@@ -10,6 +10,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { signedUrl } from "@/lib/data/period-detail";
 import { PHOTOS_BUCKET } from "@/lib/storage/paths";
 import { currentLessThanPreviousIssue, previousReadingIssue } from "@/lib/domain/validation";
+import { floorDisplayName } from "@/lib/domain/floors";
 import { formatDate, formatNumber, previousReadingDisplay } from "@/lib/format";
 import { canSubmitInPeriod } from "@/lib/domain/period-status";
 
@@ -129,7 +130,11 @@ export default async function MyReadingsPage() {
                 <ReadingForm
                   periodId={period.id}
                   floorId={meter.floorId}
-                  floorName={floor?.name ?? "Tu piso"}
+                  floorName={
+                    floor
+                      ? floorDisplayName(floor.name, floor.occupantName)
+                      : "Tu piso"
+                  }
                   serviceId={meter.serviceId}
                   serviceName={service?.name ?? ""}
                   unit={service?.unit ?? ""}

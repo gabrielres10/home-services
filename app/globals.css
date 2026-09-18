@@ -1326,6 +1326,14 @@ details[open] > .archive-toggle::before {
   line-height: 1.1;
 }
 
+.floor-band-occupant {
+  display: block;
+  margin-top: 0.28rem;
+  font-size: 0.55em;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
 .floor-band-status {
   display: flex;
   flex-wrap: wrap;

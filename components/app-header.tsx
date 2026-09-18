@@ -21,9 +21,7 @@ export function AppHeader({
   const homeHref = user.role === "admin" ? "/admin" : "/mis-lecturas";
   const atHome = crumbs.length === 0;
   const identity =
-    user.role === "admin"
-      ? user.fullName
-      : [user.fullName, user.floorName].filter(Boolean).join(" · ");
+    user.role === "admin" ? user.fullName : (user.floorName ?? user.fullName);
 
   return (
     <header className="app-header">

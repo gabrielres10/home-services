@@ -75,7 +75,7 @@ Tablas principales (definidas en `supabase/migrations/001_schema.sql`):
 | Tabla | Propósito |
 | --- | --- |
 | `profiles` | Perfil 1:1 con `auth.users`. Rol `admin` o `floor_user`. |
-| `floors` | Piso 1, Piso 2, Piso 3. |
+| `floors` | Piso 1 (Nasly), Piso 2 (Lucy), Piso 3 (Juan). |
 | `services` | Energía, agua, alcantarillado. Alcantarillado se marca como `copied` desde agua. |
 | `floor_service_meters` | Qué combinaciones piso/servicio tienen contador. |
 | `floor_memberships` | Usuario de piso → un piso. |

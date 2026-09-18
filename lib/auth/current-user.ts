@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { floorDisplayName } from "@/lib/domain/floors";
 import type { UserRole } from "@/lib/domain/types";
 
 export type CurrentUser = {
@@ -41,10 +42,12 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (membership?.floor_id) {
     const { data: floor } = await supabase
       .from("floors")
-      .select("name")
+      .select("name, occupant_name")
       .eq("id", membership.floor_id)
       .maybeSingle();
-    floorName = floor?.name ?? null;
+    floorName = floor
+      ? floorDisplayName(floor.name, floor.occupant_name)
+      : null;
   }
 
   return {

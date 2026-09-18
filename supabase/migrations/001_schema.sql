@@ -30,6 +30,7 @@ create table if not exists public.floors (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
   name text not null,
+  occupant_name text not null,
   sort_order integer not null unique
 );
 
@@ -465,12 +466,13 @@ grant usage, select on all sequences in schema public to authenticated;
 grant execute on function public.is_admin() to authenticated;
 grant execute on function public.user_floor_id() to authenticated;
 
-insert into public.floors (code, name, sort_order)
+insert into public.floors (code, name, occupant_name, sort_order)
 values
-  ('piso-1', 'Piso 1', 1),
-  ('piso-2', 'Piso 2', 2),
-  ('piso-3', 'Piso 3', 3)
-on conflict (code) do nothing;
+  ('piso-1', 'Piso 1', 'Nasly', 1),
+  ('piso-2', 'Piso 2', 'Lucy', 2),
+  ('piso-3', 'Piso 3', 'Juan', 3)
+on conflict (code) do update
+set occupant_name = excluded.occupant_name;
 
 insert into public.services (code, name, unit, consumption_source, copied_from_service_id, sort_order)
 values

@@ -11,6 +11,7 @@ import { SettlementPanel } from "@/components/settlement-panel";
 import { FloorBand, PageMain, WorkPanel } from "@/components/ui";
 import { loadPeriodDetail, numericOrEmpty } from "@/lib/data/period-detail";
 import { billChargeFields, billChargeLookup } from "@/lib/domain/bill-charges";
+import { floorDisplayName } from "@/lib/domain/floors";
 import { canClosePeriod } from "@/lib/domain/period-status";
 import {
   consumptionDisplay,
@@ -166,6 +167,7 @@ export default async function PeriodDetailPage({
                     id={floorAnchor(floor.code, floor.sortOrder)}
                     tone={floorTone(floor.sortOrder)}
                     name={floor.name}
+                    occupant={floor.occupantName}
                     status={
                       <ul className="floor-band-status">
                         {floorMeters.length === 0 ? (
@@ -214,7 +216,10 @@ export default async function PeriodDetailPage({
                           <ReadingReviewCard
                             periodId={period.id}
                             floorId={card.meter.floorId}
-                            floorName={card.floor?.name ?? ""}
+                            floorName={floorDisplayName(
+                              card.floor?.name ?? "",
+                              card.floor?.occupantName,
+                            )}
                             serviceId={card.meter.serviceId}
                             serviceName={card.service?.name ?? ""}
                             unit={card.service?.unit ?? ""}

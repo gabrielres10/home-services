@@ -23,6 +23,7 @@ export async function loadCatalog() {
     id: floor.id,
     code: floor.code,
     name: floor.name,
+    occupantName: floor.occupant_name,
     sortOrder: floor.sort_order,
   }));
 

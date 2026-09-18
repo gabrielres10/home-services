@@ -1,5 +1,6 @@
 import type { BillChargeValueMap } from "./bill-charges";
 import { billChargeLookup } from "./bill-charges";
+import { floorDisplayName } from "./floors";
 import type { CatalogFloor } from "./period-consumption";
 import type { ValidationIssue } from "./types";
 
@@ -496,7 +497,7 @@ export function floorsFromCatalogAndLines(
     result.push({
       floorId: floor.id,
       floorCode: floor.code,
-      floorName: floor.name,
+      floorName: floorDisplayName(floor.name, floor.occupantName),
       sortOrder: floor.sortOrder,
       energyKwh: energy.consumption,
       waterM3: water.consumption,
