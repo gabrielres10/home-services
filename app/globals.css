@@ -533,6 +533,31 @@ textarea.input-control {
   line-height: 1.2;
 }
 
+.numeric-field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.numeric-preview {
+  margin: 0;
+  color: var(--mute);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92rem;
+  letter-spacing: -0.02em;
+}
+
+.numeric-hint {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.82rem;
+}
+
+.numeric-negative,
+.numeric-preview.is-negative,
+.input-control.is-negative {
+  color: var(--danger);
+}
+
 .file-control {
   min-height: 3rem;
   padding: 0.35rem 0.45rem;

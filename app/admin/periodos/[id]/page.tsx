@@ -9,16 +9,16 @@ import { PeriodStatusBadge, ReadingStatusBadge, MissingBadge } from "@/component
 import { ReadingReviewCard } from "@/components/reading-review-card";
 import { SettlementPanel } from "@/components/settlement-panel";
 import { FloorBand, PageMain, WorkPanel } from "@/components/ui";
+import { Amount } from "@/components/amount";
 import { loadPeriodDetail, numericOrEmpty } from "@/lib/data/period-detail";
 import { billChargeFields, billChargeLookup } from "@/lib/domain/bill-charges";
 import { floorDisplayName } from "@/lib/domain/floors";
 import { canClosePeriod } from "@/lib/domain/period-status";
 import {
-  consumptionDisplay,
   formatDate,
   formatDateTime,
-  formatNumber,
   previousReadingDisplay,
+  consumptionDisplay,
 } from "@/lib/format";
 
 export default async function PeriodDetailPage({
@@ -194,12 +194,12 @@ export default async function PeriodDetailPage({
                         )}
                         {energyLine?.consumption != null ? (
                           <li className="muted">
-                            Energía {consumptionDisplay(energyLine.consumption, false)}
+                            Energía <Amount value={energyLine.consumption} />
                           </li>
                         ) : null}
                         {waterLine?.consumption != null ? (
                           <li className="muted">
-                            Agua {consumptionDisplay(waterLine.consumption, false)}
+                            Agua <Amount value={waterLine.consumption} />
                           </li>
                         ) : null}
                       </ul>
@@ -296,16 +296,26 @@ export default async function PeriodDetailPage({
                             : "Igual que agua"}
                       </td>
                       <td>
-                        {previousReadingDisplay(
-                          line.previous,
-                          isOpeningPeriod && line.source === "meter",
+                        {line.previous === null ? (
+                          previousReadingDisplay(
+                            line.previous,
+                            isOpeningPeriod && line.source === "meter",
+                          )
+                        ) : (
+                          <Amount value={line.previous} />
                         )}
                       </td>
-                      <td>{formatNumber(line.current)}</td>
                       <td>
-                        {consumptionDisplay(
-                          line.consumption,
-                          isOpeningPeriod && line.source === "meter",
+                        <Amount value={line.current} />
+                      </td>
+                      <td>
+                        {line.consumption === null ? (
+                          consumptionDisplay(
+                            line.consumption,
+                            isOpeningPeriod && line.source === "meter",
+                          )
+                        ) : (
+                          <Amount value={line.consumption} />
                         )}
                         {line.issues.length > 0 ? " ⚠" : ""}
                       </td>

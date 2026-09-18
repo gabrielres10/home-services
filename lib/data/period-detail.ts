@@ -17,7 +17,7 @@ import {
   validateBill,
   validateReadingDraft,
 } from "@/lib/domain/validation";
-import { toNumber } from "@/lib/format";
+import { toNumber, numberToInputRaw } from "@/lib/format";
 import type { ValidationIssue } from "@/lib/domain/types";
 import { billChargeValuesFromRows } from "@/lib/domain/bill-charges";
 import { resolveSettlement } from "@/lib/domain/settlement";
@@ -286,5 +286,5 @@ export async function loadPeriodDetail(periodId: string) {
 
 export function numericOrEmpty(value: number | null | undefined): string {
   const parsed = toNumber(value ?? null);
-  return parsed === null ? "" : String(parsed);
+  return parsed === null ? "" : numberToInputRaw(parsed);
 }

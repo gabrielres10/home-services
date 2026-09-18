@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
 import { IssueList } from "@/components/issue-list";
+import { Amount } from "@/components/amount";
 import { WorkPanel } from "@/components/ui";
 import type { SettlementResult } from "@/lib/domain/settlement";
-import { formatMoney, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 
 export function SettlementPanel({
   settlement,
@@ -66,28 +68,40 @@ export function SettlementPanel({
                 <p className="kicker">Piso</p>
                 <h3>{floor.floorName}</h3>
               </div>
-              <p className="floor-total">{formatMoney(floor.total)}</p>
+              <p className="floor-total">
+                <Amount value={floor.total} kind="money" />
+              </p>
             </header>
             <dl>
               <div>
-                <dt>Energía · {formatNumber(floor.energyKwh)} kWh</dt>
-                <dd>{formatMoney(floor.energyCost)}</dd>
+                <dt>
+                  Energía · <Amount value={floor.energyKwh} /> kWh
+                </dt>
+                <dd>
+                  <Amount value={floor.energyCost} kind="money" />
+                </dd>
                 <span className="split">
-                  {formatNumber(floor.energySubsidizedKwh)} kWh subsidio ·{" "}
-                  {formatNumber(floor.energyStandardKwh)} kWh estándar
+                  <Amount value={floor.energySubsidizedKwh} /> kWh subsidio ·{" "}
+                  <Amount value={floor.energyStandardKwh} /> kWh estándar
                 </span>
               </div>
               <div>
-                <dt>Agua · {formatNumber(floor.waterM3)} m³</dt>
-                <dd>{formatMoney(floor.waterCost)}</dd>
+                <dt>
+                  Agua · <Amount value={floor.waterM3} /> m³
+                </dt>
+                <dd>
+                  <Amount value={floor.waterCost} kind="money" />
+                </dd>
                 <span className="split">
-                  {formatNumber(floor.waterSubsidizedM3)} m³ subsidio ·{" "}
-                  {formatNumber(floor.waterStandardM3)} m³ estándar
+                  <Amount value={floor.waterSubsidizedM3} /> m³ subsidio ·{" "}
+                  <Amount value={floor.waterStandardM3} /> m³ estándar
                 </span>
               </div>
               <div>
                 <dt>Alumbrado público (AP)</dt>
-                <dd>{formatMoney(floor.otherServicesApCost)}</dd>
+                <dd>
+                  <Amount value={floor.otherServicesApCost} kind="money" />
+                </dd>
               </div>
             </dl>
           </article>
@@ -103,31 +117,47 @@ export function SettlementPanel({
               <tbody>
                 <RateRow
                   label="Precio energía subsidiada"
-                  value={`${formatMoney(rates.energySubsidizedUnitPrice)} / kWh`}
+                  value={
+                    <>
+                      <Amount value={rates.energySubsidizedUnitPrice} kind="money" /> / kWh
+                    </>
+                  }
                 />
                 <RateRow
                   label="Precio energía estándar"
-                  value={`${formatMoney(rates.energyStandardUnitPrice)} / kWh`}
+                  value={
+                    <>
+                      <Amount value={rates.energyStandardUnitPrice} kind="money" /> / kWh
+                    </>
+                  }
                 />
                 <RateRow
                   label="Otros de energía (por piso)"
-                  value={formatMoney(rates.energyOthersPerFloor[0] ?? 0)}
+                  value={<Amount value={rates.energyOthersPerFloor[0] ?? 0} kind="money" />}
                 />
                 <RateRow
                   label="Precio acueducto y alcantarillado subsidiado"
-                  value={`${formatMoney(rates.waterSubsidizedUnitPrice)} / m³`}
+                  value={
+                    <>
+                      <Amount value={rates.waterSubsidizedUnitPrice} kind="money" /> / m³
+                    </>
+                  }
                 />
                 <RateRow
                   label="Precio acueducto y alcantarillado estándar"
-                  value={`${formatMoney(rates.waterStandardUnitPrice)} / m³`}
+                  value={
+                    <>
+                      <Amount value={rates.waterStandardUnitPrice} kind="money" /> / m³
+                    </>
+                  }
                 />
                 <RateRow
                   label="Otros de acueducto y alcantarillado (por piso)"
-                  value={formatMoney(rates.waterOthersPerFloor[0] ?? 0)}
+                  value={<Amount value={rates.waterOthersPerFloor[0] ?? 0} kind="money" />}
                 />
                 <RateRow
                   label="Otros servicios + AP (por piso)"
-                  value={formatMoney(rates.otherServicesApPerFloor[0] ?? 0)}
+                  value={<Amount value={rates.otherServicesApPerFloor[0] ?? 0} kind="money" />}
                 />
               </tbody>
             </table>
@@ -144,23 +174,39 @@ export function SettlementPanel({
               <tbody>
                 <tr>
                   <td>Energía</td>
-                  <td>{formatMoney(totals.energy)}</td>
-                  <td>{formatMoney(totals.billEnergy)}</td>
+                  <td>
+                    <Amount value={totals.energy} kind="money" />
+                  </td>
+                  <td>
+                    <Amount value={totals.billEnergy} kind="money" />
+                  </td>
                 </tr>
                 <tr>
                   <td>Acueducto y alcantarillado</td>
-                  <td>{formatMoney(totals.waterAndSewer)}</td>
-                  <td>{formatMoney(totals.billWaterAndSewer)}</td>
+                  <td>
+                    <Amount value={totals.waterAndSewer} kind="money" />
+                  </td>
+                  <td>
+                    <Amount value={totals.billWaterAndSewer} kind="money" />
+                  </td>
                 </tr>
                 <tr>
                   <td>Otros servicios + AP</td>
-                  <td>{formatMoney(totals.otherServicesAp)}</td>
-                  <td>{formatMoney(totals.billOtherServicesAp)}</td>
+                  <td>
+                    <Amount value={totals.otherServicesAp} kind="money" />
+                  </td>
+                  <td>
+                    <Amount value={totals.billOtherServicesAp} kind="money" />
+                  </td>
                 </tr>
                 <tr className="is-total">
                   <td>Total</td>
-                  <td>{formatMoney(totals.payable)}</td>
-                  <td>{formatMoney(totals.billPayable)}</td>
+                  <td>
+                    <Amount value={totals.payable} kind="money" />
+                  </td>
+                  <td>
+                    <Amount value={totals.billPayable} kind="money" />
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -171,7 +217,7 @@ export function SettlementPanel({
   );
 }
 
-function RateRow({ label, value }: { label: string; value: string }) {
+function RateRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <tr>
       <th className="plain">{label}</th>

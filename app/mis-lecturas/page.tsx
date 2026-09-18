@@ -11,7 +11,9 @@ import { signedUrl } from "@/lib/data/period-detail";
 import { PHOTOS_BUCKET } from "@/lib/storage/paths";
 import { currentLessThanPreviousIssue, previousReadingIssue } from "@/lib/domain/validation";
 import { floorDisplayName } from "@/lib/domain/floors";
-import { formatDate, formatNumber, previousReadingDisplay } from "@/lib/format";
+import { formatDate, previousReadingDisplay } from "@/lib/format";
+import { numberToInputRaw } from "@/lib/domain/numeric";
+import { Amount } from "@/components/amount";
 import { canSubmitInPeriod } from "@/lib/domain/period-status";
 
 export default async function MyReadingsPage() {
@@ -121,9 +123,15 @@ export default async function MyReadingsPage() {
               {reading ? (
                 <p className="text-[0.95rem]">
                   Enviada:{" "}
-                  <strong className="figure">{formatNumber(Number(reading.value))}</strong>{" "}
+                  <strong className="figure">
+                    <Amount value={Number(reading.value)} />
+                  </strong>{" "}
                   {service?.unit}. Anterior:{" "}
-                  {previousReadingDisplay(previous, !earlier)}
+                  {previous === null ? (
+                    previousReadingDisplay(previous, !earlier)
+                  ) : (
+                    <Amount value={previous} />
+                  )}
                 </p>
               ) : null}
               {editable && reading?.status !== "approved" ? (
@@ -139,7 +147,7 @@ export default async function MyReadingsPage() {
                   serviceName={service?.name ?? ""}
                   unit={service?.unit ?? ""}
                   previousValue={previous}
-                  currentValue={reading ? String(reading.value) : ""}
+                  currentValue={reading ? numberToInputRaw(Number(reading.value)) : ""}
                   readingDate={reading?.reading_date ?? period.ends_on}
                   issues={issues}
                   disabled={!canSubmitInPeriod(period.status)}

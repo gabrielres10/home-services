@@ -4,44 +4,33 @@ import {
   type BillChargeValueMap,
   isServiceCode,
 } from "./bill-charges";
+import { explainNumericReject, parseNumericRaw } from "./numeric";
 import type { PeriodStatus, ServiceCode, ValidationIssue } from "./types";
 
-const VALUE_PATTERN = /^\d+([.,]\d+)?$/;
-
-export function parseReadingValue(
+function parseStrictNumber(
   raw: string,
+  empty: { code: string; message: string },
+  invalidCode: string,
 ): { ok: true; value: number } | { ok: false; issue: ValidationIssue } {
-  const trimmed = raw.trim();
-  if (trimmed === "") {
+  if (raw === "") {
     return {
       ok: false,
       issue: {
-        code: "reading.empty",
+        code: empty.code,
         severity: "error",
-        message: "La lectura está vacía.",
+        message: empty.message,
       },
     };
   }
 
-  if (!VALUE_PATTERN.test(trimmed)) {
+  const value = parseNumericRaw(raw);
+  if (value === null) {
     return {
       ok: false,
       issue: {
-        code: "reading.not_numeric",
+        code: invalidCode,
         severity: "error",
-        message: "La lectura debe ser un número mayor o igual a cero.",
-      },
-    };
-  }
-
-  const value = Number(trimmed.replace(",", "."));
-  if (!Number.isFinite(value)) {
-    return {
-      ok: false,
-      issue: {
-        code: "reading.not_numeric",
-        severity: "error",
-        message: "La lectura debe ser un número mayor o igual a cero.",
+        message: explainNumericReject(raw),
       },
     };
   }
@@ -49,47 +38,24 @@ export function parseReadingValue(
   return { ok: true, value };
 }
 
-const MONEY_PATTERN = /^-?\d+([.,]\d+)?$/;
+export function parseReadingValue(
+  raw: string,
+): { ok: true; value: number } | { ok: false; issue: ValidationIssue } {
+  return parseStrictNumber(
+    raw,
+    { code: "reading.empty", message: "La lectura está vacía." },
+    "reading.not_numeric",
+  );
+}
 
 export function parseMoneyAmount(
   raw: string,
 ): { ok: true; value: number } | { ok: false; issue: ValidationIssue } {
-  const trimmed = raw.trim();
-  if (trimmed === "") {
-    return {
-      ok: false,
-      issue: {
-        code: "bill.charge_empty",
-        severity: "error",
-        message: "El importe está vacío.",
-      },
-    };
-  }
-
-  if (!MONEY_PATTERN.test(trimmed)) {
-    return {
-      ok: false,
-      issue: {
-        code: "bill.charge_not_numeric",
-        severity: "error",
-        message: "El importe debe ser un número. Puede ser negativo.",
-      },
-    };
-  }
-
-  const value = Number(trimmed.replace(",", "."));
-  if (!Number.isFinite(value)) {
-    return {
-      ok: false,
-      issue: {
-        code: "bill.charge_not_numeric",
-        severity: "error",
-        message: "El importe debe ser un número. Puede ser negativo.",
-      },
-    };
-  }
-
-  return { ok: true, value };
+  return parseStrictNumber(
+    raw,
+    { code: "bill.charge_empty", message: "El importe está vacío." },
+    "bill.charge_not_numeric",
+  );
 }
 
 export function currentLessThanPreviousIssue(

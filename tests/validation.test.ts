@@ -9,23 +9,28 @@ import {
 
 describe("parseReadingValue", () => {
   it("rechaza vacío", () => {
-    const result = parseReadingValue("  ");
+    const result = parseReadingValue("");
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.issue.code).toBe("reading.empty");
     }
   });
 
-  it("rechaza no numérico", () => {
-    const result = parseReadingValue("12a");
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.issue.code).toBe("reading.not_numeric");
+  it("rechaza espacios, puntos y letras", () => {
+    expect(parseReadingValue("  ").ok).toBe(false);
+    expect(parseReadingValue("12a").ok).toBe(false);
+    expect(parseReadingValue("1301.5").ok).toBe(false);
+    const dotted = parseReadingValue("1.301");
+    expect(dotted.ok).toBe(false);
+    if (!dotted.ok) {
+      expect(dotted.issue.message).toMatch(/coma/i);
     }
   });
 
-  it("acepta 1301", () => {
+  it("acepta 1301 y decimales con coma", () => {
     expect(parseReadingValue("1301")).toEqual({ ok: true, value: 1301 });
+    expect(parseReadingValue("1301,5")).toEqual({ ok: true, value: 1301.5 });
+    expect(parseReadingValue("-12")).toEqual({ ok: true, value: -12 });
   });
 });
 

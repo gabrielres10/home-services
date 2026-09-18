@@ -1,13 +1,4 @@
-const moneyFormatter = new Intl.NumberFormat("es-CO", {
-  style: "currency",
-  currency: "COP",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
-
-const numberFormatter = new Intl.NumberFormat("es-CO", {
-  maximumFractionDigits: 3,
-});
+import { formatMoneyValue, formatQuantityValue, numberToInputRaw } from "@/lib/domain/numeric";
 
 const dateFormatter = new Intl.DateTimeFormat("es-CO", {
   year: "numeric",
@@ -25,18 +16,20 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-CO", {
 });
 
 export function formatMoney(value: number | null | undefined): string {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return "—";
   }
-  return moneyFormatter.format(value);
+  return formatMoneyValue(value);
 }
 
 export function formatNumber(value: number | null | undefined): string {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return "—";
   }
-  return numberFormatter.format(value);
+  return formatQuantityValue(value);
 }
+
+export { numberToInputRaw };
 
 export function formatDate(isoDate: string | null | undefined): string {
   if (!isoDate) {

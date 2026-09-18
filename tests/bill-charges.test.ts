@@ -57,10 +57,15 @@ describe("parseMoneyAmount", () => {
   });
 
   it("rechaza vacío o texto", () => {
-    const empty = parseMoneyAmount(" ");
+    const empty = parseMoneyAmount("");
     expect(empty.ok).toBe(false);
     if (!empty.ok) {
       expect(empty.issue.code).toBe("bill.charge_empty");
+    }
+    const spaces = parseMoneyAmount(" ");
+    expect(spaces.ok).toBe(false);
+    if (!spaces.ok) {
+      expect(spaces.issue.code).toBe("bill.charge_not_numeric");
     }
     const invalid = parseMoneyAmount("12a");
     expect(invalid.ok).toBe(false);

@@ -4,10 +4,13 @@ import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { approveReading, rejectReading, submitReading } from "@/app/actions/readings";
 import { optimizeMeterPhoto } from "@/lib/images/optimize";
-import { consumptionDisplay, formatNumber, previousReadingDisplay } from "@/lib/format";
+import { consumptionDisplay, previousReadingDisplay } from "@/lib/format";
+import { numberToInputRaw } from "@/lib/domain/numeric";
+import { Amount } from "@/components/amount";
 import { IssueList } from "@/components/issue-list";
 import { ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import { PhotoPicker } from "@/components/photo-picker";
+import { NumericInput } from "@/components/numeric-input";
 import { SubmitButton } from "@/components/submit-button";
 import type { ValidationIssue } from "@/lib/domain/types";
 import type { ReadingStatus } from "@/lib/domain/types";
@@ -104,19 +107,35 @@ export function ReadingReviewCard({
         <dl className="review-stats">
           <div>
             <dt>Lectura anterior</dt>
-            <dd>{previousReadingDisplay(previousValue, isOpeningPeriod)}</dd>
+            <dd>
+              {previousValue === null ? (
+                previousReadingDisplay(previousValue, isOpeningPeriod)
+              ) : (
+                <Amount value={previousValue} />
+              )}
+            </dd>
           </div>
           <div>
             <dt>Lectura actual</dt>
-            <dd>{value === null ? "—" : formatNumber(value)}</dd>
+            <dd>
+              <Amount value={value} />
+            </dd>
           </div>
           <div>
             <dt>Valor enviado por el usuario</dt>
-            <dd>{submittedValue === null ? "—" : formatNumber(submittedValue)}</dd>
+            <dd>
+              <Amount value={submittedValue} />
+            </dd>
           </div>
           <div>
             <dt>Consumo</dt>
-            <dd>{consumptionDisplay(consumption, isOpeningPeriod)}</dd>
+            <dd>
+              {consumption === null ? (
+                consumptionDisplay(consumption, isOpeningPeriod)
+              ) : (
+                <Amount value={consumption} />
+              )}
+            </dd>
           </div>
         </dl>
         <IssueList issues={issues} />
@@ -135,11 +154,9 @@ export function ReadingReviewCard({
             <input type="hidden" name="reading_id" value={readingId} />
             <label className="field">
               <span className="field-label">Corregir valor (opcional)</span>
-              <input
+              <NumericInput
                 name="corrected_value"
-                inputMode="decimal"
-                defaultValue={value === null ? "" : String(value)}
-                className="input-control input-figure"
+                defaultValue={value === null ? "" : numberToInputRaw(value)}
               />
             </label>
             {warningsNeedConfirm ? (
@@ -175,12 +192,7 @@ export function ReadingReviewCard({
           <div className="review-register-fields">
             <label className="field">
               <span className="field-label">Lectura actual</span>
-              <input
-                name="value"
-                inputMode="decimal"
-                required
-                className="input-control input-figure"
-              />
+              <NumericInput name="value" required />
             </label>
             <label className="field">
               <span className="field-label">Fecha de lectura</span>

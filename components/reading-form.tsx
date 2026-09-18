@@ -5,6 +5,8 @@ import { ActionForm } from "@/components/action-form";
 import { submitReading } from "@/app/actions/readings";
 import { optimizeMeterPhoto } from "@/lib/images/optimize";
 import { previousReadingDisplay } from "@/lib/format";
+import { Amount } from "@/components/amount";
+import { NumericInput } from "@/components/numeric-input";
 import type { ValidationIssue } from "@/lib/domain/types";
 import { IssueList } from "@/components/issue-list";
 import { PhotoPicker } from "@/components/photo-picker";
@@ -83,20 +85,18 @@ export function ReadingForm({
       <p className="period-name-preview">
         <span className="kicker">Lectura anterior</span>
         <strong className={previousValue === null ? "type-display-placeholder" : undefined}>
-          {previousReadingDisplay(previousValue, isOpeningPeriod)}
+          {previousValue === null ? (
+            previousReadingDisplay(previousValue, isOpeningPeriod)
+          ) : (
+            <Amount value={previousValue} />
+          )}
         </strong>
       </p>
       <IssueList issues={issues} />
       <fieldset disabled={disabled || pendingPhoto} className="stack-md border-0 p-0">
         <label className="field">
           <span className="field-label">Lectura actual</span>
-          <input
-            name="value"
-            inputMode="decimal"
-            required
-            defaultValue={currentValue}
-            className="input-control input-figure"
-          />
+          <NumericInput name="value" required defaultValue={currentValue} />
         </label>
         <label className="field">
           <span className="field-label">Fecha de lectura</span>

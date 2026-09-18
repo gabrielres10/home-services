@@ -9,6 +9,7 @@ import {
   billPdfPath,
 } from "@/lib/storage/paths";
 import { billChargeFieldName, billChargeFields } from "@/lib/domain/bill-charges";
+import { NumericInput } from "@/components/numeric-input";
 import { SubmitButton } from "@/components/submit-button";
 
 type ChargeField = {
@@ -122,13 +123,11 @@ export function BillForm({
                 <span className="field-label">
                   Total {service.name} ({service.unit})
                 </span>
-                <input
+                <NumericInput
                   name={`total_${service.code}`}
-                  inputMode="decimal"
                   defaultValue={service.value}
                   required
                   disabled={locked}
-                  className="input-control input-figure"
                 />
               </label>
               <p className="field-label mt-5 mb-2">Importes en pesos</p>
@@ -136,13 +135,12 @@ export function BillForm({
                 {fields.map((field) => (
                   <label key={field.code} className="field">
                     <span className="field-label">{field.label}</span>
-                    <input
+                    <NumericInput
                       name={billChargeFieldName(service.code, field.code)}
-                      inputMode="decimal"
+                      kind="money"
                       defaultValue={field.value}
                       required
                       disabled={locked}
-                      className="input-control input-figure"
                     />
                   </label>
                 ))}
@@ -160,13 +158,12 @@ export function BillForm({
           <span className="field-label">
             Subtotal otros servicios + AP (alumbrado público)
           </span>
-          <input
+          <NumericInput
             name="other_services_ap_subtotal"
-            inputMode="decimal"
+            kind="money"
             defaultValue={otherServicesApSubtotal}
             required
             disabled={locked}
-            className="input-control input-figure"
           />
         </label>
       </fieldset>
