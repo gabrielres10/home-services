@@ -8,6 +8,7 @@ truncate table
   public.audit_logs,
   public.reading_photos,
   public.meter_readings,
+  public.bill_service_charges,
   public.bill_service_totals,
   public.bills,
   public.billing_periods,

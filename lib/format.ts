@@ -1,3 +1,10 @@
+const moneyFormatter = new Intl.NumberFormat("es-CO", {
+  style: "currency",
+  currency: "COP",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
 const numberFormatter = new Intl.NumberFormat("es-CO", {
   maximumFractionDigits: 3,
 });
@@ -16,6 +23,13 @@ const dateTimeFormatter = new Intl.DateTimeFormat("es-CO", {
   hour: "2-digit",
   minute: "2-digit",
 });
+
+export function formatMoney(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "—";
+  }
+  return moneyFormatter.format(value);
+}
 
 export function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined) {

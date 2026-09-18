@@ -7,7 +7,8 @@ import { PeriodActions } from "@/components/period-actions";
 import { PeriodStatusBadge, ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import { ReadingReviewCard } from "@/components/reading-review-card";
 import { loadPeriodDetail, numericOrEmpty } from "@/lib/data/period-detail";
-import { consumptionDisplay, formatDate, formatDateTime, formatNumber, previousReadingDisplay } from "@/lib/format";
+import { billChargeFields, billChargeLookup } from "@/lib/domain/bill-charges";
+import { consumptionDisplay, formatDate, formatDateTime, formatMoney, formatNumber, previousReadingDisplay } from "@/lib/format";
 
 export default async function PeriodDetailPage({
   params,
@@ -28,6 +29,7 @@ export default async function PeriodDetailPage({
     billIssues,
     pdfUrl,
     totalsByCode,
+    chargeValues,
     readingCards,
     consumptions,
     counts,
@@ -37,6 +39,7 @@ export default async function PeriodDetailPage({
   } = detail;
 
   const allApproved = counts.approvedCount === counts.expectedCount && counts.missingCount === 0;
+  const billComplete = billIssues.filter((issue) => issue.severity === "error").length === 0;
 
   return (
     <>
@@ -53,7 +56,14 @@ export default async function PeriodDetailPage({
             <PeriodStatusBadge status={period.status} label={statusLabel} />
           </div>
           <ul className="mt-4 space-y-1 text-sm">
-            <li>Recibo {bill?.pdf_storage_path ? "✓ Cargado" : isOpeningPeriod ? "Opcional (período inicial)" : "✗ Pendiente"}</li>
+            <li>
+              Recibo{" "}
+              {billComplete
+                ? "✓ Completo"
+                : isOpeningPeriod
+                  ? "Opcional (período inicial)"
+                  : "✗ Incompleto"}
+            </li>
             <li>
               Lecturas {counts.approvedCount}/{counts.expectedCount} aprobadas
             </li>
@@ -94,8 +104,50 @@ export default async function PeriodDetailPage({
               name: service.name,
               unit: service.unit,
               value: numericOrEmpty(totalsByCode.get(service.code) ?? null),
+              charges: billChargeFields(service.code).map((field) => ({
+                code: field.code,
+                label: field.label,
+                value: numericOrEmpty(
+                  billChargeLookup(chargeValues, service.code, field.code),
+                ),
+              })),
             }))}
           />
+          {catalog.services.some((service) =>
+            billChargeFields(service.code).some(
+              (field) => billChargeLookup(chargeValues, service.code, field.code) !== null,
+            ),
+          ) ? (
+            <div className="overflow-x-auto rounded border border-stone-200 bg-white">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-stone-50 text-stone-600">
+                  <tr>
+                    <th className="px-3 py-2">Servicio</th>
+                    <th className="px-3 py-2">Renglón</th>
+                    <th className="px-3 py-2">Importe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {catalog.services.flatMap((service) =>
+                    billChargeFields(service.code).map((field) => (
+                      <tr
+                        key={`${service.code}-${field.code}`}
+                        className="border-t border-stone-100"
+                      >
+                        <td className="px-3 py-2">{service.name}</td>
+                        <td className="px-3 py-2">{field.label}</td>
+                        <td className="px-3 py-2">
+                          {formatMoney(
+                            billChargeLookup(chargeValues, service.code, field.code),
+                          )}
+                        </td>
+                      </tr>
+                    )),
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
           {pdfUrl ? (
             <iframe
               title="Recibo PDF"

@@ -14,11 +14,12 @@ import {
 import {
   currentLessThanPreviousIssue,
   previousReadingIssue,
-  validateBillTotals,
+  validateBill,
   validateReadingDraft,
 } from "@/lib/domain/validation";
 import { toNumber } from "@/lib/format";
 import type { ValidationIssue } from "@/lib/domain/types";
+import { billChargeValuesFromRows } from "@/lib/domain/bill-charges";
 
 export async function signedUrl(bucket: string, path: string | null) {
   if (!path) {
@@ -105,6 +106,9 @@ export async function loadPeriodDetail(periodId: string) {
   const { data: billTotals } = bill
     ? await supabase.from("bill_service_totals").select("*").eq("bill_id", bill.id)
     : { data: [] };
+  const { data: billCharges } = bill
+    ? await supabase.from("bill_service_charges").select("*").eq("bill_id", bill.id)
+    : { data: [] };
 
   const previousBySlot = await loadPreviousBySlots({
     slots: catalog.meters,
@@ -141,11 +145,14 @@ export async function loadPeriodDetail(periodId: string) {
     totalsByCode.set(service.code, total ? Number(total.total_consumption) : null);
   }
 
-  const billIssues = validateBillTotals({
+  const chargeValues = billChargeValuesFromRows(catalog.services, billCharges ?? []);
+
+  const billIssues = validateBill({
     energy: totalsByCode.get("energia") ?? null,
     water: totalsByCode.get("agua") ?? null,
     sewer: totalsByCode.get("alcantarillado") ?? null,
     hasPdf: Boolean(bill?.pdf_storage_path),
+    charges: chargeValues,
   });
 
   const pdfUrl = await signedUrl(BILLS_BUCKET, bill?.pdf_storage_path ?? null);
@@ -253,6 +260,7 @@ export async function loadPeriodDetail(periodId: string) {
     billIssues,
     pdfUrl,
     totalsByCode,
+    chargeValues,
     readingCards,
     consumptions,
     counts,

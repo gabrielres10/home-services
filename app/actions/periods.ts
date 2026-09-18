@@ -8,7 +8,8 @@ import { evaluatePeriodReadiness } from "@/lib/domain/period-status";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loadCatalog, loadPreviousBySlots, hasAnyEarlierPeriod } from "@/lib/data/catalog";
 import { buildPeriodConsumptions } from "@/lib/domain/period-consumption";
-import { validateBillTotals } from "@/lib/domain/validation";
+import { billChargeValuesFromRows } from "@/lib/domain/bill-charges";
+import { validateBill } from "@/lib/domain/validation";
 
 export async function createPeriod(formData: FormData): Promise<{ error: string } | void> {
   const admin = await requireAdmin();
@@ -80,6 +81,9 @@ export async function markPeriodReady(periodId: string): Promise<{ error: string
   const { data: billTotals } = bill
     ? await supabase.from("bill_service_totals").select("*").eq("bill_id", bill.id)
     : { data: [] as Array<{ service_id: string; total_consumption: number }> };
+  const { data: billCharges } = bill
+    ? await supabase.from("bill_service_charges").select("*").eq("bill_id", bill.id)
+    : { data: [] as Array<{ service_id: string; charge_code: string; amount: number }> };
 
   const totals = (billTotals ?? []).map((row) => ({
     serviceId: row.service_id,
@@ -114,11 +118,12 @@ export async function markPeriodReady(periodId: string): Promise<{ error: string
     }),
   );
 
-  const billIssues = validateBillTotals({
+  const billIssues = validateBill({
     energy: totalsByCode.get("energia") ?? null,
     water: totalsByCode.get("agua") ?? null,
     sewer: totalsByCode.get("alcantarillado") ?? null,
     hasPdf: Boolean(bill?.pdf_storage_path),
+    charges: billChargeValuesFromRows(catalog.services, billCharges ?? []),
   });
 
   const readiness = evaluatePeriodReadiness({

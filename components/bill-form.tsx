@@ -8,12 +8,20 @@ import {
   MAX_BILL_PDF_BYTES,
   billPdfPath,
 } from "@/lib/storage/paths";
+import { billChargeFieldName, billChargeFields } from "@/lib/domain/bill-charges";
+
+type ChargeField = {
+  code: string;
+  label: string;
+  value: string;
+};
 
 type ServiceField = {
   code: string;
   name: string;
   unit: string;
   value: string;
+  charges?: ChargeField[];
 };
 
 export function BillForm({
@@ -69,21 +77,58 @@ export function BillForm({
           className="block w-full text-sm"
         />
       </label>
-      <div className="grid gap-3 sm:grid-cols-3">
-        {services.map((service) => (
-          <label key={service.code} className="block text-sm">
-            <span className="mb-1 block text-stone-700">
-              Total {service.name} ({service.unit})
-            </span>
-            <input
-              name={`total_${service.code}`}
-              inputMode="decimal"
-              defaultValue={service.value}
-              required
-              className="w-full rounded border border-stone-300 px-3 py-2"
-            />
-          </label>
-        ))}
+      <p className="text-sm text-stone-600">
+        Copia los consumos y los importes en pesos tal como aparecen en el recibo. Cero es
+        válido si ese renglón no cobra. El mínimo vital y el ajuste al peso pueden ser
+        negativos.
+      </p>
+      <div className="space-y-4">
+        {services.map((service) => {
+          const fields =
+            service.charges && service.charges.length > 0
+              ? service.charges
+              : billChargeFields(service.code).map((field) => ({
+                  ...field,
+                  value: "",
+                }));
+          return (
+            <fieldset
+              key={service.code}
+              className="space-y-3 rounded border border-stone-200 bg-stone-50 p-4"
+            >
+              <legend className="px-1 text-sm font-medium text-stone-900">
+                {service.name}
+              </legend>
+              <label className="block text-sm">
+                <span className="mb-1 block text-stone-700">
+                  Total {service.name} ({service.unit})
+                </span>
+                <input
+                  name={`total_${service.code}`}
+                  inputMode="decimal"
+                  defaultValue={service.value}
+                  required
+                  className="w-full rounded border border-stone-300 bg-white px-3 py-2"
+                />
+              </label>
+              <p className="text-sm font-medium text-stone-800">Importes en pesos</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {fields.map((field) => (
+                  <label key={field.code} className="block text-sm">
+                    <span className="mb-1 block text-stone-700">{field.label}</span>
+                    <input
+                      name={billChargeFieldName(service.code, field.code)}
+                      inputMode="decimal"
+                      defaultValue={field.value}
+                      required
+                      className="w-full rounded border border-stone-300 bg-white px-3 py-2"
+                    />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          );
+        })}
       </div>
       <label className="block text-sm">
         <span className="mb-1 block text-stone-700">Notas</span>

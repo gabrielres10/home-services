@@ -1,5 +1,10 @@
 import { consumptionFromApprovedReadings, unmeteredFloorConsumption } from "./consumption";
-import type { PeriodStatus, ValidationIssue } from "./types";
+import {
+  BILL_CHARGE_CATALOG,
+  type BillChargeValueMap,
+  isServiceCode,
+} from "./bill-charges";
+import type { PeriodStatus, ServiceCode, ValidationIssue } from "./types";
 
 const VALUE_PATTERN = /^\d+([.,]\d+)?$/;
 
@@ -37,6 +42,49 @@ export function parseReadingValue(
         code: "reading.not_numeric",
         severity: "error",
         message: "La lectura debe ser un número mayor o igual a cero.",
+      },
+    };
+  }
+
+  return { ok: true, value };
+}
+
+const MONEY_PATTERN = /^-?\d+([.,]\d+)?$/;
+
+export function parseMoneyAmount(
+  raw: string,
+): { ok: true; value: number } | { ok: false; issue: ValidationIssue } {
+  const trimmed = raw.trim();
+  if (trimmed === "") {
+    return {
+      ok: false,
+      issue: {
+        code: "bill.charge_empty",
+        severity: "error",
+        message: "El importe está vacío.",
+      },
+    };
+  }
+
+  if (!MONEY_PATTERN.test(trimmed)) {
+    return {
+      ok: false,
+      issue: {
+        code: "bill.charge_not_numeric",
+        severity: "error",
+        message: "El importe debe ser un número. Puede ser negativo.",
+      },
+    };
+  }
+
+  const value = Number(trimmed.replace(",", "."));
+  if (!Number.isFinite(value)) {
+    return {
+      ok: false,
+      issue: {
+        code: "bill.charge_not_numeric",
+        severity: "error",
+        message: "El importe debe ser un número. Puede ser negativo.",
       },
     };
   }
@@ -208,6 +256,53 @@ export function validateBillTotals(input: {
   }
 
   return issues;
+}
+
+const SERVICE_ISSUE_NAMES: Record<ServiceCode, string> = {
+  energia: "Energía",
+  agua: "Agua",
+  alcantarillado: "Alcantarillado",
+};
+
+export function validateBillCharges(charges: BillChargeValueMap): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  for (const [serviceCode, fields] of Object.entries(BILL_CHARGE_CATALOG)) {
+    if (!isServiceCode(serviceCode)) {
+      continue;
+    }
+    const serviceName = SERVICE_ISSUE_NAMES[serviceCode];
+    for (const field of fields) {
+      const amount = charges[serviceCode][field.code];
+      if (amount === null || amount === undefined) {
+        issues.push({
+          code: "bill.charge_missing",
+          severity: "error",
+          message: `Falta el importe de ${serviceName}: ${field.label}.`,
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+export function validateBill(input: {
+  energy: number | null;
+  water: number | null;
+  sewer: number | null;
+  hasPdf: boolean;
+  charges: BillChargeValueMap;
+}): ValidationIssue[] {
+  return [
+    ...validateBillTotals({
+      energy: input.energy,
+      water: input.water,
+      sewer: input.sewer,
+      hasPdf: input.hasPdf,
+    }),
+    ...validateBillCharges(input.charges),
+  ];
 }
 
 export function unmeteredConsumptionIssue(

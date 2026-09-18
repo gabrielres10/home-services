@@ -3,13 +3,21 @@ export type BillServiceTotalInput = {
   totalConsumption: number | null;
 };
 
+export type BillChargeInput = {
+  serviceCode: string;
+  chargeCode: string;
+  amount: number | null;
+};
+
 export type ExtractedBillDraft = {
   source: "manual" | "pdf";
   totals: BillServiceTotalInput[];
+  charges: BillChargeInput[];
 };
 
 export type ManualBillInput = {
   totals: BillServiceTotalInput[];
+  charges: BillChargeInput[];
 };
 
 export interface BillExtractor {
@@ -27,6 +35,7 @@ export class ManualBillExtractor implements BillExtractor {
     return {
       source: "manual",
       totals: manual.totals,
+      charges: manual.charges,
     };
   }
 }

@@ -9,7 +9,7 @@ Prioridad: corrección, trazabilidad y simplicidad. Pensada para uso familiar, c
 Como administrador puedes:
 
 1. Crear un período (no tiene que ser un mes calendario).
-2. Cargar el PDF del recibo y registrar los consumos totales de energía, agua y alcantarillado.
+2. Cargar el PDF del recibo, los consumos totales (kWh / m³) y los importes en pesos de cada renglón de energía, agua y alcantarillado.
 3. Ver qué lecturas faltan.
 4. Revisar lecturas enviadas, ver la fotografía, corregir el valor, aprobar o rechazar.
 5. Obtener automáticamente el consumo de cada piso con contador (`lectura actual − lectura anterior aprobada`).
@@ -80,7 +80,8 @@ Tablas principales (definidas en `supabase/migrations/001_schema.sql`):
 | `floor_memberships` | Usuario de piso → un piso. |
 | `billing_periods` | Período con `label`, `starts_on`, `ends_on`, `status` (`open`, `ready`, `closed`). |
 | `bills` | Recibo 1:1 con el período y ruta del PDF. |
-| `bill_service_totals` | Consumo total por servicio en el recibo. |
+| `bill_service_totals` | Consumo total por servicio en el recibo (kWh / m³). |
+| `bill_service_charges` | Importes en pesos por renglón del recibo (energía, agua, alcantarillado). |
 | `meter_readings` | Lectura vigente por período + piso + servicio. Guarda `submitted_value` (original) y `value` (vigente). Estados: `pending`, `approved`, `rejected`. |
 | `reading_photos` | Fotografías; las anteriores no se borran. |
 | `audit_logs` | Quién cambió qué, con valor anterior y nuevo. Lo rellenan triggers. |
@@ -269,7 +270,7 @@ No hace falta encadenar períodos hacia atrás de forma indefinida.
 ## Funcionamiento mensual
 
 1. El administrador crea el período (`open`).
-2. Sube el PDF y los totales de energía, agua y alcantarillado.
+2. Sube el PDF, los consumos totales y los importes en pesos de energía, agua y alcantarillado.
 3. Los usuarios de Piso 1 y 2 envían lectura + foto.
 4. El administrador compara foto y valor. Puede corregir (queda `submitted_value` original, `value` vigente y una fila de auditoría), aprobar o rechazar con motivo.
 5. Cuando las 4 lecturas están aprobadas, hay lectura anterior (salvo en el período inicial), los consumos del Piso 3 no son negativos y el recibo está completo, el administrador marca el período **listo**.
@@ -314,7 +315,7 @@ tests/               Vitest
 - Extracción automática del PDF
 - OCR o visión sobre las fotografías
 - Panel de alta de usuarios
-- Montos en dinero del recibo
 - Gráficos
 
+Los importes en pesos del recibo sí se capturan. Todavía no se usan para calcular cuánto paga cada piso.
 Cuando se especifiquen las reglas de Excel, el punto de entrada es `lib/domain/settlement.ts`.

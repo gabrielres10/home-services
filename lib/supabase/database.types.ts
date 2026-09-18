@@ -184,6 +184,24 @@ export type Database = {
         };
         Relationships: [];
       };
+      bill_service_charges: {
+        Row: {
+          bill_id: string;
+          service_id: string;
+          charge_code: string;
+          amount: number;
+        };
+        Insert: {
+          bill_id: string;
+          service_id: string;
+          charge_code: string;
+          amount: number;
+        };
+        Update: {
+          amount?: number;
+        };
+        Relationships: [];
+      };
       meter_readings: {
         Row: {
           id: string;
