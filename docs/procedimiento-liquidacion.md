@@ -45,7 +45,9 @@ Este paso ya lo cubre la aplicación.
 
 ## Paso 2 — Datos en dinero del recibo
 
-Del PDF se copian renglones **en pesos**. No se inventan: se transcriben.
+Del PDF se copian renglones **en pesos**. No se inventan: se transcriben. En el recibo EMCALI esos pesos salen de la columna **Total a Pagar** de la **página 1** (no de Valor Total ni de Subsidio). La aplicación puede leer esa página y rellenar los campos; hay que revisarlos antes de guardar.
+
+**No** se copian las lecturas del medidor que aparecen a la izquierda: esas las envía cada piso.
 
 ### Energía
 
@@ -90,7 +92,7 @@ Además de los renglones por servicio, el recibo trae **un solo valor para toda 
 | --- | --- | --- |
 | Subtotal otros servicios + AP | Importe único de la vivienda. AP significa alumbrado público. | Se divide entre `n` y se suma al cobro de cada piso |
 
-No se parte por servicio ni por contador. Se transcribe tal como aparece en el recibo.
+No se parte por servicio ni por contador. Se transcribe tal como aparece en el recibo, en EMCALI como **SubTotal Otros Servicios + AP**.
 
 Este paso ya lo cubre la aplicación.
 

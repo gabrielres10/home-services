@@ -14,6 +14,7 @@ export type ExtractedBillDraft = {
   totals: BillServiceTotalInput[];
   charges: BillChargeInput[];
   otherServicesApSubtotal: number | null;
+  rawText?: string;
 };
 
 export type ManualBillInput = {

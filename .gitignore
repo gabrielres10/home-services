@@ -34,8 +34,8 @@ yarn-error.log*
 .env*
 !.env.example
 
-# vercel
-.vercel
+# generated pdf.js worker
+/public/pdf.worker.min.mjs
 
 # typescript
 *.tsbuildinfo

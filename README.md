@@ -48,7 +48,7 @@ El recibo entra por una abstracción:
 PDF → BillExtractor.extract() → datos del recibo → validación → período
 ```
 
-Hoy `ManualBillExtractor` usa los valores que escribe el administrador. Más adelante se puede sustituir por un parser en el navegador, sin reescribir el resto del sistema.
+Hoy, al elegir el PDF, `PdfBillExtractor` lee la página 1 (texto seleccionable) y un parser EMCALI rellena consumos e importes. El administrador revisa y guarda. `ManualBillExtractor` sigue disponible para tests y para cuando no hay archivo.
 
 ## Tecnologías
 
@@ -63,7 +63,7 @@ Hoy `ManualBillExtractor` usa los valores que escribe el administrador. Más ade
 - Piso 1 y Piso 2 tienen contador de **energía** y **agua**.
 - Piso 3 no tiene contador: su consumo es `total del recibo − Piso 1 − Piso 2`.
 - **Alcantarillado** no tiene contador. El consumo de cada piso es el mismo que el de agua.
-- Hay un PDF por período. Los totales se capturan a mano en esta versión.
+- Hay un PDF por período. Al elegirlo se rellenan los renglones de la página 1; hay que revisarlos y guardar.
 - Una lectura pendiente o rechazada **nunca** se usa como lectura anterior. Solo la última lectura **aprobada** de un período que **empiece antes**. Si dos períodos comparten el día de lectura (por ejemplo 11 feb), el anterior es el que empieza antes.
 - El período con la fecha inicial más antigua es el de **lectura inicial**: no calcula consumo ni exige recibo. El consumo empieza en el siguiente período.
 - Si el consumo del Piso 3 sale negativo, el período no se puede marcar como listo.
@@ -312,8 +312,7 @@ tests/               Vitest
 
 ## Lo que no está en esta versión (a propósito)
 
-- Extracción automática del PDF
-- OCR o visión sobre las fotografías
+- OCR de fotografías de contadores
 - Panel de alta de usuarios
 - Gráficos
 

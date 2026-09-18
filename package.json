@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "postinstall": "node scripts/copy-pdf-worker.mjs",
     "db:schema": "node scripts/apply-schema.mjs",
     "db:reset": "node scripts/reset-db.mjs",
     "user:admin": "node scripts/create-user.mjs admin",
@@ -19,6 +20,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "next": "16.3.5",
+    "pdfjs-dist": "^6.3.289",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

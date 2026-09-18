@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { saveBill } from "@/app/actions/bills";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -9,6 +10,10 @@ import {
   billPdfPath,
 } from "@/lib/storage/paths";
 import { billChargeFieldName, billChargeFields } from "@/lib/domain/bill-charges";
+import { numberToInputRaw } from "@/lib/domain/numeric";
+import { countExtractedValues, parseEmcaliBillText } from "@/lib/billing/emcali-parser";
+import { describeExtractError, readPdfPageOneText } from "@/lib/billing/pdf-reader";
+import type { ExtractedBillDraft } from "@/lib/billing/extractor";
 import { NumericInput } from "@/components/numeric-input";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -26,6 +31,53 @@ type ServiceField = {
   charges?: ChargeField[];
 };
 
+type FilledBill = {
+  totals: Record<string, string>;
+  charges: Record<string, string>;
+  ap: string;
+};
+
+function draftToFilled(draft: ExtractedBillDraft, services: ServiceField[]): FilledBill {
+  const totals: Record<string, string> = {};
+  const charges: Record<string, string> = {};
+  for (const service of services) {
+    const total = draft.totals.find((item) => item.serviceCode === service.code);
+    totals[service.code] =
+      total?.totalConsumption === null || total?.totalConsumption === undefined
+        ? service.value
+        : numberToInputRaw(total.totalConsumption);
+    const fields =
+      service.charges && service.charges.length > 0
+        ? service.charges
+        : billChargeFields(service.code).map((field) => ({ ...field, value: "" }));
+    for (const field of fields) {
+      const name = billChargeFieldName(service.code, field.code);
+      const found = draft.charges.find(
+        (item) => item.serviceCode === service.code && item.chargeCode === field.code,
+      );
+      charges[name] =
+        found?.amount === null || found?.amount === undefined
+          ? field.value
+          : numberToInputRaw(found.amount);
+    }
+  }
+  return {
+    totals,
+    charges,
+    ap:
+      draft.otherServicesApSubtotal === null
+        ? ""
+        : numberToInputRaw(draft.otherServicesApSubtotal),
+  };
+}
+
+function extractStatusMessage(count: number): string {
+  if (count === 0) {
+    return "Leí el texto, pero no reconocí renglones. Completa los números a mano o pega el texto de la página 1.";
+  }
+  return `Rellené ${count} campo${count === 1 ? "" : "s"} con lo que pude leer. Completa los vacíos, revisa y pulsa Guardar recibo.`;
+}
+
 export function BillForm({
   periodId,
   services,
@@ -41,12 +93,38 @@ export function BillForm({
   otherServicesApSubtotal: string;
   locked?: boolean;
 }) {
+  const [filled, setFilled] = useState<FilledBill | null>(null);
+  const [fieldKey, setFieldKey] = useState(0);
+  const [extractStatus, setExtractStatus] = useState<"idle" | "reading" | "ok" | "error">(
+    "idle",
+  );
+  const [extractMessage, setExtractMessage] = useState<string | null>(null);
+  const [rawText, setRawText] = useState<string>("");
+  const [pasteText, setPasteText] = useState("");
+
+  function applyDraft(draft: ExtractedBillDraft) {
+    const count = countExtractedValues(draft);
+    if (draft.rawText) {
+      setRawText(draft.rawText);
+    }
+    if (count === 0) {
+      setExtractStatus("error");
+      setExtractMessage(extractStatusMessage(0));
+      return;
+    }
+    setFilled(draftToFilled(draft, services));
+    setFieldKey((value) => value + 1);
+    setExtractStatus("ok");
+    setExtractMessage(extractStatusMessage(count));
+  }
+
   async function action(formData: FormData) {
     const pdf = formData.get("pdf");
     formData.delete("pdf");
+    formData.delete("pdf_text_paste");
 
     if (pdf instanceof File && pdf.size > 0) {
-      if (pdf.type !== "application/pdf") {
+      if (pdf.type !== "application/pdf" && !pdf.name.toLowerCase().endsWith(".pdf")) {
         return { error: "El recibo debe ser un archivo PDF." };
       }
       if (pdf.size > MAX_BILL_PDF_BYTES) {
@@ -68,6 +146,33 @@ export function BillForm({
     return saveBill(formData);
   }
 
+  async function onPdfChosen(file: File | null) {
+    if (!file || locked) {
+      return;
+    }
+    setExtractStatus("reading");
+    setExtractMessage("Leyendo la página 1 del recibo…");
+    try {
+      const text = await readPdfPageOneText(file);
+      setRawText(text);
+      applyDraft(parseEmcaliBillText(text));
+    } catch (error) {
+      setExtractStatus("error");
+      setExtractMessage(
+        `No pude leer el PDF (${describeExtractError(error)}). Pega abajo el texto de la página 1 o copia los números a mano.`,
+      );
+    }
+  }
+
+  function onPasteText() {
+    const text = pasteText.trim();
+    if (!text || locked) {
+      return;
+    }
+    setRawText(text);
+    applyDraft(parseEmcaliBillText(text));
+  }
+
   return (
     <ActionForm action={action} className="stack-lg">
       {locked ? (
@@ -79,8 +184,8 @@ export function BillForm({
       <div className="file-drop">
         <p className="file-drop-title">PDF del recibo</p>
         <p className="muted text-[0.9rem]">
-          Es el archivo que envió la empresa. Tiene que ser un PDF. Pulsa el botón
-          verde para buscarlo en el computador.
+          Elige el PDF de EMCALI. Se lee sola la página 1 y se copian los importes
+          de Total a Pagar. Si un campo no sale, queda vacío para que lo completes.
         </p>
         <label className="field">
           <span className="sr-only">Archivo PDF del recibo</span>
@@ -89,19 +194,64 @@ export function BillForm({
             type="file"
             accept="application/pdf"
             required={!hasPdf && !locked}
-            disabled={locked}
+            disabled={locked || extractStatus === "reading"}
             className="input-control file-control"
+            onChange={(event) => {
+              void onPdfChosen(event.target.files?.[0] ?? null);
+            }}
           />
         </label>
-        <p className={hasPdf ? "text-[0.9rem]" : "muted text-[0.9rem]"}>
-          {hasPdf
-            ? "Ya hay un PDF cargado. Abajo puedes verlo. Elige otro solo si quieres reemplazarlo."
-            : "Todavía no hay PDF. Sin este archivo no se puede guardar el recibo."}
-        </p>
+        {extractMessage ? (
+          <p
+            className={
+              extractStatus === "error"
+                ? "notice notice-error"
+                : extractStatus === "ok"
+                  ? "notice notice-info"
+                  : "muted text-[0.9rem]"
+            }
+          >
+            {extractMessage}
+          </p>
+        ) : (
+          <p className={hasPdf ? "text-[0.9rem]" : "muted text-[0.9rem]"}>
+            {hasPdf
+              ? "Ya hay un PDF cargado. Abajo puedes verlo. Elige otro si quieres reemplazarlo y volver a leerlo."
+              : "Todavía no hay PDF. Sin este archivo no se puede guardar el recibo."}
+          </p>
+        )}
+        {locked ? null : (
+          <label className="field">
+            <span className="field-label">Pegar texto de la página 1</span>
+            <textarea
+              name="pdf_text_paste"
+              value={pasteText}
+              onChange={(event) => setPasteText(event.target.value)}
+              rows={4}
+              disabled={extractStatus === "reading"}
+              className="input-control"
+              placeholder="Si el archivo no se lee: en el PDF, página 1, Ctrl+A, copiar y pegar aquí."
+            />
+            <button
+              type="button"
+              className="btn btn-ghost mt-2"
+              disabled={extractStatus === "reading" || pasteText.trim() === ""}
+              onClick={onPasteText}
+            >
+              Rellenar desde este texto
+            </button>
+          </label>
+        )}
+        {rawText ? (
+          <details className="extract-dump">
+            <summary>Texto leído (cópialo si algo falla)</summary>
+            <pre>{rawText}</pre>
+          </details>
+        ) : null}
       </div>
       <p className="muted text-[0.92rem]">
-        Después copia los números tal como aparecen en el recibo. Si un renglón no
-        cobra, escribe 0. El mínimo vital y el ajuste al peso pueden ser negativos.
+        Si un renglón no cobra, deja 0. El mínimo vital y el ajuste al peso pueden
+        ser negativos. No copies lecturas del medidor: esas las envía cada piso.
       </p>
       <div className="stack-lg">
         {services.map((service) => {
@@ -117,33 +267,38 @@ export function BillForm({
               <legend>{service.name}</legend>
               <p className="fieldset-lead">
                 Primero el consumo total en {service.unit}. Luego cada renglón en
-                pesos, con el mismo nombre que en el recibo.
+                pesos, copiado de Total a Pagar.
               </p>
               <label className="field">
                 <span className="field-label">
                   Total {service.name} ({service.unit})
                 </span>
                 <NumericInput
+                  key={`${fieldKey}-total-${service.code}`}
                   name={`total_${service.code}`}
-                  defaultValue={service.value}
+                  defaultValue={filled?.totals[service.code] ?? service.value}
                   required
-                  disabled={locked}
+                  disabled={locked || extractStatus === "reading"}
                 />
               </label>
               <p className="field-label mt-5 mb-2">Importes en pesos</p>
               <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-                {fields.map((field) => (
-                  <label key={field.code} className="field">
-                    <span className="field-label">{field.label}</span>
-                    <NumericInput
-                      name={billChargeFieldName(service.code, field.code)}
-                      kind="money"
-                      defaultValue={field.value}
-                      required
-                      disabled={locked}
-                    />
-                  </label>
-                ))}
+                {fields.map((field) => {
+                  const name = billChargeFieldName(service.code, field.code);
+                  return (
+                    <label key={field.code} className="field">
+                      <span className="field-label">{field.label}</span>
+                      <NumericInput
+                        key={`${fieldKey}-${name}`}
+                        name={name}
+                        kind="money"
+                        defaultValue={filled?.charges[name] ?? field.value}
+                        required
+                        disabled={locked || extractStatus === "reading"}
+                      />
+                    </label>
+                  );
+                })}
               </div>
             </fieldset>
           );
@@ -159,11 +314,12 @@ export function BillForm({
             Subtotal otros servicios + AP (alumbrado público)
           </span>
           <NumericInput
+            key={`${fieldKey}-ap`}
             name="other_services_ap_subtotal"
             kind="money"
-            defaultValue={otherServicesApSubtotal}
+            defaultValue={filled?.ap ?? otherServicesApSubtotal}
             required
-            disabled={locked}
+            disabled={locked || extractStatus === "reading"}
           />
         </label>
       </fieldset>

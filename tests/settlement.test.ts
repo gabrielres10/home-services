@@ -215,7 +215,7 @@ describe("resolveSettlement", () => {
 });
 
 describe("BillExtractor", () => {
-  it("en v1 usa la captura manual y deja el PDF para un extractor futuro", async () => {
+  it("en v1 extrae a mano si no hay PDF", async () => {
     const draft = await extractBillDraft(
       null,
       {
