@@ -46,6 +46,21 @@ export function normalizeBillLabel(raw: string): string {
   return normalized.replace(/\bconsumo mayor al basico(?:\s+\d+)?$/, "consumo mayor al basico");
 }
 
+function hasCreditMarker(text: string): boolean {
+  return /\(\s*[-−–]\s*\)/.test(text);
+}
+
+function isCreditMarkerOnly(line: string): boolean {
+  return hasCreditMarker(line) && line.replace(/\(\s*[-−–]\s*\)/g, " ").replace(/\$/g, "").trim() === "";
+}
+
+function applyCreditSign(amount: number, credit: boolean): number {
+  if (!credit || amount === 0) {
+    return amount;
+  }
+  return -Math.abs(amount);
+}
+
 function moneyNumbersIn(text: string): number[] {
   const matches = text.match(MONEY_OR_DECIMAL) ?? [];
   return matches.flatMap((match) => {
@@ -156,10 +171,7 @@ function energyCharge(label: string): ChargeCode | "skip" | "otros" | null {
   ) {
     return "skip";
   }
-  if (label.includes("consumo recuperado") || label.startsWith("vr ")) {
-    return "otros";
-  }
-  if (label.length >= 8) {
+  if (label.includes("otros cobros") || label.includes("consumo recuperado")) {
     return "otros";
   }
   return null;
@@ -168,6 +180,7 @@ function energyCharge(label: string): ChargeCode | "skip" | "otros" | null {
 type ClassifiedLine = {
   label: string;
   numbers: number[];
+  credit: boolean;
   kind: ChargeCode | "skip" | "otros" | null;
 };
 
@@ -181,6 +194,7 @@ function classifyLine(
   return {
     label,
     numbers,
+    credit: hasCreditMarker(line),
     kind: label ? classify(label) : null,
   };
 }
@@ -191,37 +205,57 @@ function parseConceptLines(
 ): { found: Record<string, number>; otros: number } {
   const found: Record<string, number> = {};
   let otros = 0;
+  let pendingCredit = false;
   const lines = section
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
   for (let index = 0; index < lines.length; index += 1) {
-    const current = classifyLine(lines[index] ?? "", classify);
-    if (current.kind === "skip" || current.kind === null) {
+    const raw = lines[index] ?? "";
+    if (isCreditMarkerOnly(raw)) {
+      pendingCredit = true;
       continue;
     }
 
+    const current = classifyLine(raw, classify);
+    if (current.kind === "skip" || current.kind === null) {
+      pendingCredit = false;
+      continue;
+    }
+
+    let credit = current.credit || pendingCredit;
+    pendingCredit = false;
     const collected = [...current.numbers];
     if (collected.length === 0) {
       let look = index + 1;
       while (look < lines.length) {
-        const next = classifyLine(lines[look] ?? "", classify);
+        const nextRaw = lines[look] ?? "";
+        if (isCreditMarkerOnly(nextRaw)) {
+          credit = true;
+          look += 1;
+          continue;
+        }
+        const next = classifyLine(nextRaw, classify);
         if (next.kind !== null) {
           break;
         }
         if (next.numbers.length === 0) {
           break;
         }
+        if (next.credit) {
+          credit = true;
+        }
         collected.push(...next.numbers);
         look += 1;
       }
     }
 
-    const amount = collected.at(-1);
-    if (amount === undefined) {
+    const unsigned = collected.at(-1);
+    if (unsigned === undefined) {
       continue;
     }
+    const amount = applyCreditSign(unsigned, credit);
     if (current.kind === "otros") {
       otros += amount;
       continue;

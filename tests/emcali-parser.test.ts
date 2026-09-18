@@ -92,7 +92,7 @@ describe("parseEmcaliBillText", () => {
     expect(amount(draft, "alcantarillado", "cargo_basico")).toBeCloseTo(2049.58);
     expect(amount(draft, "alcantarillado", "consumo_basico_hasta_16")).toBeCloseTo(19627.36);
     expect(amount(draft, "alcantarillado", "consumo_mayor_al_basico")).toBeCloseTo(26834.29);
-    expect(amount(draft, "alcantarillado", "ajuste_al_peso")).toBeCloseTo(0.23);
+    expect(amount(draft, "alcantarillado", "ajuste_al_peso")).toBeCloseTo(-0.23);
     expect(amount(draft, "alcantarillado", "interes_mora")).toBe(0);
 
     expect(amount(draft, "energia", "consumo_basico_hasta_173")).toBeCloseTo(73034.22);
@@ -160,5 +160,57 @@ Cargo Básico 3,821.30
     expect(amount(draft, "agua", "interes_mora")).toBe(0);
     expect(amount(draft, "energia", "interes_mora")).toBeNull();
     expect(amount(draft, "energia", "otros_cobros")).toBeNull();
+  });
+
+  it("deja otros cobros de energía en 0 si no hay Consumo Recuperado ni Otros Cobros", () => {
+    const draft = parseEmcaliBillText(`
+ENERGIA
+Consumo Actual 594 KWH
+Promedio 534.00
+CONCEPTOS Cantidad Valor Unitario Valor Total Subsidio Total a Pagar
+Consumo De Energía Activa
+Consumo Básico Hasta 173 173.00 868.56 150,261.04 -77,226.82 73,319.16
+Consumo Mayor Al Básico 421 421.00 905.67 380,486.83 380,486.83
+Ajuste al Peso .15
+TOTAL $453,806.14
+`);
+    expect(total(draft, "energia")).toBe(594);
+    expect(amount(draft, "energia", "consumo_basico_hasta_173")).toBeCloseTo(73319.16);
+    expect(amount(draft, "energia", "consumo_mayor_al_basico")).toBeCloseTo(380486.83);
+    expect(amount(draft, "energia", "ajuste_al_peso")).toBeCloseTo(0.15);
+    expect(amount(draft, "energia", "otros_cobros")).toBe(0);
+  });
+
+  it("trata (-) en la etiqueta como signo negativo del importe", () => {
+    const draft = parseEmcaliBillText(`
+ACUEDUCTO
+Consumo del mes en M3 23
+(-) Minimo Vital 6.00 1,070.01 6,420.06 6,420.06
+(-) Ajuste al peso: 0.2
+ALCANTARILLADO
+(-)Ajuste al Peso -.23
+ENERGIA
+Consumo Actual 594 KWH
+Consumo Básico Hasta 173 73,319.16
+(-)
+Ajuste al Peso
+.15
+`);
+    expect(amount(draft, "agua", "minimo_vital")).toBeCloseTo(-6420.06);
+    expect(amount(draft, "agua", "ajuste_al_peso")).toBeCloseTo(-0.2);
+    expect(amount(draft, "alcantarillado", "ajuste_al_peso")).toBeCloseTo(-0.23);
+    expect(amount(draft, "energia", "ajuste_al_peso")).toBeCloseTo(-0.15);
+  });
+
+  it("suma Otros Cobros y Consumo Recuperado en el mismo renglón de energía", () => {
+    const draft = parseEmcaliBillText(`
+ENERGIA
+Consumo Actual 553 KWH
+Consumo Básico Hasta 173 173.00 868.56 73,034.22
+Otros Cobros 534.00 534.00
+Vr. Consumo Recuperado 2026/06 35.00 828.95 29,013.18 29,013.18
+Ajuste al Peso .42
+`);
+    expect(amount(draft, "energia", "otros_cobros")).toBeCloseTo(29547.18);
   });
 });
