@@ -46,7 +46,19 @@ export function PeriodGuide({
                 <strong>{step.title}</strong>
                 <span className="guide-detail">{step.detail}</span>
               </span>
-              <span className="guide-state">{stateLabel[step.state]}</span>
+              <span className="guide-state">
+                {step.state === "done" ? (
+                  <span className="guide-check" aria-hidden>
+                    <svg viewBox="0 0 16 16" width="12" height="12">
+                      <path
+                        fill="currentColor"
+                        d="M6.35 11.15 2.9 7.7l1.15-1.15 2.3 2.3 5.6-5.65 1.15 1.15z"
+                      />
+                    </svg>
+                  </span>
+                ) : null}
+                {stateLabel[step.state]}
+              </span>
             </a>
           </li>
         ))}

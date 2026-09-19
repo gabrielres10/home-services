@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FilePicker } from "@/components/file-picker";
 
 export function PhotoPicker({
   name = "photo",
@@ -26,8 +27,7 @@ export function PhotoPicker({
     };
   }, [previewUrl]);
 
-  function onChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
+  function onFile(file: File | null) {
     setError(null);
 
     if (!file) {
@@ -39,7 +39,6 @@ export function PhotoPicker({
       setError("Elige una fotografía. Ese archivo no es una imagen.");
       setPreviewUrl(null);
       onPreviewChange?.(null);
-      event.target.value = "";
       return;
     }
 
@@ -51,14 +50,14 @@ export function PhotoPicker({
   return (
     <div className="file-drop file-drop-compact">
       <p className="file-drop-title">{title}</p>
-      <input
+      <FilePicker
         name={name}
-        type="file"
         accept="image/*"
         required={required}
         disabled={disabled}
-        onChange={onChange}
-        className="input-control file-control"
+        buttonLabel="Elegir fotografía"
+        emptyLabel="Ninguna fotografía elegida"
+        onFile={onFile}
       />
       {error ? <p className="notice notice-error">{error}</p> : null}
     </div>

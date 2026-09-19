@@ -15,6 +15,7 @@ import { countExtractedValues, parseEmcaliBillText } from "@/lib/billing/emcali-
 import { describeExtractError, readPdfPageOneText } from "@/lib/billing/pdf-reader";
 import type { ExtractedBillDraft } from "@/lib/billing/extractor";
 import { Amount } from "@/components/amount";
+import { FilePicker } from "@/components/file-picker";
 import { NumericInput } from "@/components/numeric-input";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -93,11 +94,12 @@ function chargeRawsFromServices(
   return raws;
 }
 
-function extractStatusMessage(count: number): string {
+function extractStatusMessage(count: number, alreadySaved: boolean): string {
   if (count === 0) {
     return "Leí el PDF, pero no reconocí los renglones. Completa los números a mano.";
   }
-  return `Rellené ${count} campo${count === 1 ? "" : "s"} con lo que pude leer. Completa los vacíos, revisa y pulsa Guardar recibo.`;
+  const saveLabel = alreadySaved ? "Guardar nuevamente" : "Guardar recibo";
+  return `Rellené ${count} campo${count === 1 ? "" : "s"} con lo que pude leer. Completa los vacíos, revisa y pulsa ${saveLabel}.`;
 }
 
 export function BillForm({
@@ -121,11 +123,14 @@ export function BillForm({
   const [chargeRaws, setChargeRaws] = useState(() => chargeRawsFromServices(services, null));
   const [fieldKey, setFieldKey] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [saved, setSaved] = useState(hasPdf);
+  const [justSaved, setJustSaved] = useState(false);
   const [extractStatus, setExtractStatus] = useState<"idle" | "reading" | "ok" | "error">(
     "idle",
   );
   const [extractMessage, setExtractMessage] = useState<string | null>(null);
   const displayPdf = previewUrl ?? existingPdfUrl;
+  const alreadySaved = hasPdf || saved;
 
   useEffect(() => {
     return () => {
@@ -147,7 +152,7 @@ export function BillForm({
     setChargeRaws(chargeRawsFromServices(services, nextFilled));
     setFieldKey((value) => value + 1);
     setExtractStatus("ok");
-    setExtractMessage(extractStatusMessage(count));
+    setExtractMessage(extractStatusMessage(count, alreadySaved));
   }
 
   async function action(formData: FormData) {
@@ -174,10 +179,16 @@ export function BillForm({
       formData.set("pdf_storage_path", path);
     }
 
-    return saveBill(formData);
+    const result = await saveBill(formData);
+    if (result && "error" in result && result.error) {
+      return result;
+    }
+    setSaved(true);
+    setJustSaved(true);
   }
 
   async function onPdfChosen(file: File | null) {
+    setJustSaved(false);
     if (!file || locked) {
       setPreviewUrl(null);
       return;
@@ -224,20 +235,23 @@ export function BillForm({
           Elige el PDF de EMCALI. Se lee sola la página 1 y se copian los importes
           de Total a Pagar. Si un campo no sale, queda vacío para que lo completes.
         </p>
-        <label className="field">
-          <span className="sr-only">Archivo PDF del recibo</span>
-          <input
+        <div className="field">
+          <FilePicker
             name="pdf"
-            type="file"
             accept="application/pdf"
-            required={!hasPdf && !locked}
+            required={!alreadySaved && !locked}
             disabled={locked || extractStatus === "reading"}
-            className="input-control file-control"
-            onChange={(event) => {
-              void onPdfChosen(event.target.files?.[0] ?? null);
+            buttonLabel="Elegir PDF"
+            emptyLabel={
+              alreadySaved
+                ? "Ningún archivo nuevo (se mantiene el actual)"
+                : "Ningún archivo elegido"
+            }
+            onFile={(file) => {
+              void onPdfChosen(file);
             }}
           />
-        </label>
+        </div>
         {extractMessage ? (
           <p
             className={
@@ -253,7 +267,7 @@ export function BillForm({
         ) : (
           <p className={hasPdf ? "text-[0.9rem]" : "muted text-[0.9rem]"}>
             {hasPdf
-              ? "Ya hay un PDF cargado. Abajo puedes verlo. Elige otro si quieres reemplazarlo y volver a leerlo."
+              ? "Ya hay un PDF cargado. Abajo puedes verlo. Elige otro si quieres reemplazarlo y guardar nuevamente."
               : "Todavía no hay PDF. Sin este archivo no se puede guardar el recibo."}
           </p>
         )}
@@ -356,12 +370,22 @@ export function BillForm({
         />
       </label>
       {locked ? null : (
-        <div>
-          <p className="save-hint">
-            Cuando termines, pulsa este botón. Si no lo pulsas, los números no se
-            guardan.
-          </p>
-          <SubmitButton pendingLabel="Guardando…">Guardar recibo</SubmitButton>
+        <div className="stack-md">
+          {justSaved ? (
+            <p className="notice notice-ok" role="status">
+              El recibo quedó guardado. Si cambias el PDF o los números, pulsa
+              Guardar nuevamente.
+            </p>
+          ) : (
+            <p className="save-hint">
+              {alreadySaved
+                ? "Este recibo ya está guardado. Si cambias algo, pulsa Guardar nuevamente."
+                : "Cuando termines, pulsa este botón. Si no lo pulsas, los números no se guardan."}
+            </p>
+          )}
+          <SubmitButton pendingLabel="Guardando…">
+            {alreadySaved ? "Guardar nuevamente" : "Guardar recibo"}
+          </SubmitButton>
         </div>
       )}
     </ActionForm>
