@@ -1020,7 +1020,7 @@ form > .notice:first-child {
 }
 
 .floor-statement {
-  padding: 1.15rem 0.85rem 0.85rem;
+  padding: 1.15rem 1rem 1.05rem;
   border: 1px solid var(--line);
   background: var(--paper);
 }
@@ -1032,57 +1032,77 @@ form > .notice:first-child {
 }
 
 .floor-statement header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.35rem 1rem;
-  margin-bottom: 0.85rem;
+  margin: 0 0 0.85rem;
 }
 
 .floor-statement h3 {
-  margin: 0;
+  margin: 0.15rem 0 0;
   font-family: var(--font-display);
   font-size: 1.35rem;
   font-weight: 560;
 }
 
+.floor-due {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0 0 0.95rem;
+  padding: 0.7rem 0 0.95rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.floor-due-label {
+  color: var(--mute);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .floor-total {
   font-family: var(--font-display);
-  font-size: clamp(1.6rem, 1.2rem + 1vw, 2.1rem);
+  font-size: clamp(1.7rem, 1.3rem + 1.1vw, 2.2rem);
+  font-weight: 560;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
-  line-height: 1;
+  line-height: 1.05;
 }
 
-.floor-statement dl {
+.floor-breakdown {
   display: grid;
-  gap: 0.55rem 1rem;
+  gap: 0.9rem;
   margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.floor-statement div {
+.floor-breakdown-main {
   display: flex;
-  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 0.2rem 1rem;
+  gap: 0.75rem 1rem;
 }
 
-.floor-statement dt {
-  color: var(--mute);
+.floor-breakdown-name {
+  font-weight: 650;
 }
 
-.floor-statement dd {
-  margin: 0;
+.floor-breakdown-cost {
   font-variant-numeric: tabular-nums;
+  font-weight: 560;
   text-align: right;
 }
 
-.floor-statement .split {
-  width: 100%;
-  margin-top: -0.25rem;
+.floor-breakdown-qty,
+.floor-breakdown-split {
+  margin: 0.12rem 0 0;
   color: var(--mute);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+}
+
+.floor-breakdown-split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.9rem;
 }
 
 .history-block {
@@ -1320,7 +1340,7 @@ details[open] > .archive-toggle::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.28rem;
+  gap: 0.55rem;
   color: var(--mute);
   font-size: 0.62rem;
   font-weight: 700;
@@ -1690,7 +1710,7 @@ details[open] > .archive-toggle::before {
   }
 
   .floor-statement {
-    padding: 0.35rem 1.1rem 0.2rem;
+    padding: 1.05rem 1.1rem 1rem;
     border: 1px solid var(--line);
     border-left-width: 5px;
     background: var(--paper);

@@ -64,46 +64,63 @@ export function SettlementPanel({
             className={`floor-statement floor-band-${index + 1}`}
           >
             <header>
-              <div>
-                <p className="kicker">Piso</p>
-                <h3>{floor.floorName}</h3>
-              </div>
-              <p className="floor-total">
-                <Amount value={floor.total} kind="money" />
-              </p>
+              <p className="kicker">Piso</p>
+              <h3>{floor.floorName}</h3>
             </header>
-            <dl>
-              <div>
-                <dt>
-                  Agua · <Amount value={floor.waterM3} /> m³
-                </dt>
-                <dd>
-                  <Amount value={floor.waterCost} kind="money" />
-                </dd>
-                <span className="split">
-                  <Amount value={floor.waterSubsidizedM3} /> m³ subsidio ·{" "}
-                  <Amount value={floor.waterStandardM3} /> m³ estándar
-                </span>
-              </div>
-              <div>
-                <dt>
-                  Energía · <Amount value={floor.energyKwh} /> kWh
-                </dt>
-                <dd>
-                  <Amount value={floor.energyCost} kind="money" />
-                </dd>
-                <span className="split">
-                  <Amount value={floor.energySubsidizedKwh} /> kWh subsidio ·{" "}
-                  <Amount value={floor.energyStandardKwh} /> kWh estándar
-                </span>
-              </div>
-              <div>
-                <dt>Alumbrado público (AP)</dt>
-                <dd>
-                  <Amount value={floor.otherServicesApCost} kind="money" />
-                </dd>
-              </div>
-            </dl>
+            <p className="floor-due">
+              <span className="floor-due-label">A pagar</span>
+              <strong className="floor-total">
+                <Amount value={floor.total} kind="money" />
+              </strong>
+            </p>
+            <ul className="floor-breakdown">
+              <li>
+                <div className="floor-breakdown-main">
+                  <span className="floor-breakdown-name">Agua</span>
+                  <span className="floor-breakdown-cost">
+                    <Amount value={floor.waterCost} kind="money" />
+                  </span>
+                </div>
+                <p className="floor-breakdown-qty">
+                  <Amount value={floor.waterM3} /> m³
+                </p>
+                <p className="floor-breakdown-split">
+                  <span>
+                    <Amount value={floor.waterSubsidizedM3} /> m³ subsidio
+                  </span>
+                  <span>
+                    <Amount value={floor.waterStandardM3} /> m³ estándar
+                  </span>
+                </p>
+              </li>
+              <li>
+                <div className="floor-breakdown-main">
+                  <span className="floor-breakdown-name">Energía</span>
+                  <span className="floor-breakdown-cost">
+                    <Amount value={floor.energyCost} kind="money" />
+                  </span>
+                </div>
+                <p className="floor-breakdown-qty">
+                  <Amount value={floor.energyKwh} /> kWh
+                </p>
+                <p className="floor-breakdown-split">
+                  <span>
+                    <Amount value={floor.energySubsidizedKwh} /> kWh subsidio
+                  </span>
+                  <span>
+                    <Amount value={floor.energyStandardKwh} /> kWh estándar
+                  </span>
+                </p>
+              </li>
+              <li>
+                <div className="floor-breakdown-main">
+                  <span className="floor-breakdown-name">Alumbrado público</span>
+                  <span className="floor-breakdown-cost">
+                    <Amount value={floor.otherServicesApCost} kind="money" />
+                  </span>
+                </div>
+              </li>
+            </ul>
           </article>
         ))}
       </div>
