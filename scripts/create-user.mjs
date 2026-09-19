@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { loadEnvLocal } from "./load-env-local.mjs";
 
+const AUTH_USERNAME_DOMAIN = "vivienda.local";
+const USERNAME_PATTERN = /^[a-z][a-z0-9_-]{1,31}$/;
+
 const ROLES = {
   admin: {
     role: "admin",
@@ -21,15 +24,25 @@ const ROLES = {
 
 function usage() {
   console.error(`Uso:
-  npm run user:admin -- correo@dominio.com "Contraseña"
-  npm run user:piso-1 -- correo@dominio.com "Contraseña"
-  npm run user:piso-2 -- correo@dominio.com "Contraseña"
+  npm run user:admin -- usuario "Contraseña"
+  npm run user:piso-1 -- usuario "Contraseña"
+  npm run user:piso-2 -- usuario "Contraseña"
 
 Nombre opcional:
-  npm run user:piso-1 -- correo@dominio.com "Contraseña" "Ana"
+  npm run user:piso-1 -- nasly "Contraseña" "Nasly"
 
 Necesitas SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_SECRET_KEY) en .env.local.
 Es la clave secret / service_role del dashboard, no la anon.`);
+}
+
+function normalizeUsername(raw) {
+  const trimmed = String(raw ?? "").trim().toLowerCase();
+  const at = trimmed.indexOf("@");
+  return at === -1 ? trimmed : trimmed.slice(0, at);
+}
+
+function emailForUsername(username) {
+  return `${username}@${AUTH_USERNAME_DOMAIN}`;
 }
 
 function isDuplicateUserError(message) {
@@ -64,18 +77,88 @@ async function findUserByEmail(supabase, email) {
   return null;
 }
 
+async function userById(supabase, id) {
+  const { data, error } = await supabase.auth.admin.getUserById(id);
+  if (error || !data?.user) {
+    return null;
+  }
+  return data.user;
+}
+
+async function findExistingAccount(supabase, spec, username, syntheticEmail) {
+  const { data: byUsername } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
+  if (byUsername?.id) {
+    const found = await userById(supabase, byUsername.id);
+    if (found) {
+      return found;
+    }
+  }
+
+  const bySynthetic = await findUserByEmail(supabase, syntheticEmail);
+  if (bySynthetic) {
+    return bySynthetic;
+  }
+
+  if (spec.role === "admin") {
+    const { data: admin } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("role", "admin")
+      .limit(1)
+      .maybeSingle();
+    if (admin?.id) {
+      const found = await userById(supabase, admin.id);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  if (spec.floorCode) {
+    const { data: floor } = await supabase
+      .from("floors")
+      .select("id")
+      .eq("code", spec.floorCode)
+      .maybeSingle();
+    if (floor?.id) {
+      const { data: membership } = await supabase
+        .from("floor_memberships")
+        .select("user_id")
+        .eq("floor_id", floor.id)
+        .maybeSingle();
+      if (membership?.user_id) {
+        const found = await userById(supabase, membership.user_id);
+        if (found) {
+          return found;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 async function main() {
   loadEnvLocal();
 
   const kind = process.argv[2];
-  const email = process.argv[3]?.trim();
+  const username = normalizeUsername(process.argv[3] ?? "");
   const password = process.argv[4];
   const fullNameArg = process.argv[5]?.trim();
 
   const spec = kind ? ROLES[kind] : undefined;
-  if (!spec || !email || !password) {
+  if (!spec || !username || !password) {
     usage();
     process.exit(1);
+  }
+  if (!USERNAME_PATTERN.test(username)) {
+    throw new Error(
+      "El usuario debe empezar por una letra y solo puede tener letras, números, guion o guion bajo.",
+    );
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -102,36 +185,50 @@ async function main() {
   });
 
   const fullName = fullNameArg || spec.defaultName;
-  let user = null;
+  const email = emailForUsername(username);
+  let user = await findExistingAccount(supabase, spec, username, email);
   let created = false;
 
-  const createdResult = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName },
-  });
-
-  if (createdResult.error) {
-    if (!isDuplicateUserError(createdResult.error.message)) {
-      throw new Error(`No se pudo crear el usuario: ${createdResult.error.message}`);
-    }
-    user = await findUserByEmail(supabase, email);
-    if (!user) {
-      throw new Error(
-        "Ese correo ya existe en Auth, pero no pude obtener su id. Revísalo en Authentication → Users.",
-      );
-    }
+  if (user) {
     const { error: passwordError } = await supabase.auth.admin.updateUserById(user.id, {
+      email,
       password,
       email_confirm: true,
+      user_metadata: { full_name: fullName, username },
     });
     if (passwordError) {
-      throw new Error(`El usuario existe, pero no pude actualizar la contraseña: ${passwordError.message}`);
+      throw new Error(`El usuario existe, pero no pude actualizarlo: ${passwordError.message}`);
     }
   } else {
-    user = createdResult.data.user;
-    created = true;
+    const createdResult = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: fullName, username },
+    });
+    if (createdResult.error) {
+      if (!isDuplicateUserError(createdResult.error.message)) {
+        throw new Error(`No se pudo crear el usuario: ${createdResult.error.message}`);
+      }
+      user = await findUserByEmail(supabase, email);
+      if (!user) {
+        throw new Error(
+          "Ese usuario ya existe en Auth, pero no pude obtener su id. Revísalo en Authentication → Users.",
+        );
+      }
+      const { error: passwordError } = await supabase.auth.admin.updateUserById(user.id, {
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName, username },
+      });
+      if (passwordError) {
+        throw new Error(`El usuario existe, pero no pude actualizarlo: ${passwordError.message}`);
+      }
+    } else {
+      user = createdResult.data.user;
+      created = true;
+    }
   }
 
   if (!user) {
@@ -142,6 +239,7 @@ async function main() {
     id: user.id,
     full_name: fullName,
     role: spec.role,
+    username,
   });
   if (profileError) {
     throw new Error(
@@ -170,7 +268,7 @@ async function main() {
   }
 
   console.log(created ? "Usuario creado." : "El usuario ya existía; se actualizó.");
-  console.log(`Correo:  ${email}`);
+  console.log(`Usuario: ${username}`);
   console.log(`Nombre:  ${fullName}`);
   console.log(`Rol:     ${spec.role}`);
   console.log(`Piso:    ${spec.floorCode ?? "(ninguno)"}`);

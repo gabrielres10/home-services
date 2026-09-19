@@ -81,9 +81,9 @@ Si estás seguro:
 
 Después vuelve a crear las cuentas:
 
-  npm run user:admin -- correo "contraseña"
-  npm run user:piso-1 -- correo "contraseña"
-  npm run user:piso-2 -- correo "contraseña"`);
+  npm run user:admin -- usuario "contraseña"
+  npm run user:piso-1 -- usuario "contraseña"
+  npm run user:piso-2 -- usuario "contraseña"`);
     process.exit(1);
   }
 

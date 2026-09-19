@@ -8,12 +8,15 @@ export function LoginForm() {
   return (
     <ActionForm action={signIn} className="stack-md">
       <label className="field">
-        <span className="field-label">Correo</span>
+        <span className="field-label">Usuario</span>
         <input
-          name="email"
-          type="email"
+          name="username"
+          type="text"
           required
-          autoComplete="email"
+          autoComplete="username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           className="input-control"
         />
       </label>

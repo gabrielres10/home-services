@@ -23,17 +23,20 @@ export type Database = {
         Row: {
           id: string;
           full_name: string;
+          username: string;
           role: UserRole;
           created_at: string;
         };
         Insert: {
           id: string;
           full_name: string;
+          username: string;
           role?: UserRole;
           created_at?: string;
         };
         Update: {
           full_name?: string;
+          username?: string;
           role?: UserRole;
         };
         Relationships: [];
@@ -313,6 +316,7 @@ export type Database = {
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean };
       user_floor_id: { Args: Record<string, never>; Returns: string };
+      auth_email_for_username: { Args: { p_username: string }; Returns: string | null };
     };
     Enums: {
       user_role: UserRole;

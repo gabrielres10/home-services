@@ -75,7 +75,7 @@ Tablas principales (definidas en `supabase/migrations/001_schema.sql`):
 
 | Tabla | Propósito |
 | --- | --- |
-| `profiles` | Perfil 1:1 con `auth.users`. Rol `admin` o `floor_user`. |
+| `profiles` | Perfil 1:1 con `auth.users`. Usuario de inicio de sesión, rol `admin` o `floor_user`. |
 | `floors` | Piso 1 (Nasly), Piso 2 (Lucy), Piso 3 (Juan). |
 | `services` | Energía, agua, alcantarillado. Alcantarillado se marca como `copied` desde agua. |
 | `floor_service_meters` | Qué combinaciones piso/servicio tienen contador. |
@@ -120,11 +120,9 @@ Crea un proyecto en el dashboard de Supabase.
 
 ### 2. Autenticación
 
-En **Authentication → Providers** deja habilitado Email.
+La pantalla de inicio usa **usuario y contraseña**, no correo. Supabase Auth sigue activo por debajo: cada cuenta tiene un correo interno `usuario@vivienda.local`. En **Authentication → Providers** deja habilitado Email.
 
-En **Authentication → Settings** (o Providers → Email):
-
-- Desactiva **Confirm email** para uso familiar, o confirma el correo de cada usuario a mano. Si queda activo y nadie confirma, no podrán entrar.
+En **Authentication → Settings** (o Providers → Email) puedes desactivar **Confirm email**. Los comandos `npm run user:*` ya marcan la cuenta como confirmada.
 
 No implementes un sistema propio de contraseñas. Las cuentas se crean en Supabase Auth.
 
@@ -142,7 +140,7 @@ En la raíz del proyecto:
 npm run db:schema
 ```
 
-Eso ejecuta `supabase/migrations/001_schema.sql`: tablas, RLS, auditoría, semilla (3 pisos, 3 servicios, 4 contadores) y buckets privados `bills` y `reading-photos`.
+Eso ejecuta los SQL de `supabase/migrations/`: tablas, RLS, auditoría, semilla (3 pisos, 3 servicios, 4 contadores), buckets privados `bills` y `reading-photos`, y el usuario de inicio de sesión.
 
 Si `db.<proyecto>.supabase.co` no conecta (IPv6 / red), copia en `.env.local` la URI de **Project Settings → Database → Connect → Session pooler** como `DATABASE_URL` y vuelve a correr el comando. `DATABASE_URL` tiene prioridad sobre `SUPABASE_DB_PASSWORD`.
 
@@ -163,14 +161,14 @@ Sin `--yes` no ejecuta nada; solo muestra la ayuda.
 Después recrea las cuentas:
 
 ```bash
-npm run user:admin --  admin@tudominio.com "TuContraseña"
-npm run user:piso-1 -- piso1@tudominio.com "TuContraseña"
-npm run user:piso-2 -- piso2@tudominio.com "TuContraseña"
+npm run user:admin -- admin "TuContraseña"
+npm run user:piso-1 -- nasly "TuContraseña"
+npm run user:piso-2 -- lucy "TuContraseña"
 ```
 
 ### 4. Crear usuarios (admin, Piso 1 y Piso 2)
 
-Estos comandos crean la cuenta en Supabase Auth, confirman el correo, asignan el rol y, si corresponde, el piso.
+Estos comandos crean la cuenta en Supabase Auth, asignan el usuario de inicio de sesión, el rol y, si corresponde, el piso.
 
 Primero añade en `.env.local` la clave **secret** / **service_role** (no la anon):
 
@@ -183,26 +181,26 @@ En el dashboard: **Project Settings → API Keys**. Copia **Secret key** (`sb_se
 Luego, en la raíz del proyecto:
 
 ```bash
-npm run user:admin --  admin@tudominio.com "TuContraseña"
-npm run user:piso-1 -- piso1@tudominio.com "TuContraseña"
-npm run user:piso-2 -- piso2@tudominio.com "TuContraseña"
+npm run user:admin -- admin "TuContraseña"
+npm run user:piso-1 -- nasly "TuContraseña"
+npm run user:piso-2 -- lucy "TuContraseña"
 ```
 
 Nombre visible opcional al final:
 
 ```bash
-npm run user:piso-1 -- piso1@tudominio.com "TuContraseña" "Ana"
+npm run user:piso-1 -- nasly "TuContraseña" "Nasly"
 ```
 
-Si el correo ya existe, el comando actualiza contraseña, rol y piso en lugar de fallar.
+Si esa cuenta (admin, piso 1 o piso 2) ya existe, el comando actualiza usuario, contraseña, rol y piso en lugar de crear otra. En el login usa el usuario (`nasly`), no un correo.
 
 El Piso 3 no envía lecturas en esta versión; no necesita cuenta.
 
 ### 5. Autenticación
 
-En **Authentication → Providers** deja habilitado Email.
+En **Authentication → Providers** deja habilitado Email (Supabase lo necesita internamente). En la aplicación se entra con usuario y contraseña.
 
-En **Authentication → Settings** (o Providers → Email) puedes desactivar **Confirm email**. Los comandos `npm run user:*` ya marcan el correo como confirmado, así que deberían poder entrar aunque esa opción siga activa.
+En **Authentication → Settings** (o Providers → Email) puedes desactivar **Confirm email**. Los comandos `npm run user:*` ya marcan la cuenta como confirmada.
 
 ## Desarrollo local
 

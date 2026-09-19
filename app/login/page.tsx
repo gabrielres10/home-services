@@ -46,7 +46,7 @@ export default async function LoginPage() {
 
   return (
     <LoginShell>
-      <p>Inicia sesión para registrar o revisar lecturas.</p>
+      <p>Entra con tu usuario para registrar o revisar lecturas.</p>
     </LoginShell>
   );
 }
