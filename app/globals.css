@@ -615,23 +615,130 @@ textarea.input-control {
   color: var(--ink);
 }
 
-input[type="date"].input-control,
 input[type="email"].input-control,
 input[type="password"].input-control {
   color-scheme: light;
 }
 
-input[type="date"].input-control:not(:disabled) {
+.date-input {
+  position: relative;
+}
+
+.date-input-trigger {
+  appearance: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.date-input-trigger.is-empty {
+  color: var(--mute);
+}
+
+.date-input-value {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.date-calendar {
+  position: fixed;
+  z-index: 40;
+  padding: 0.7rem 0.75rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.date-calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.date-calendar-month {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+}
+
+.date-calendar-shift {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper) 20%, white);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 1.2rem;
+  line-height: 1;
   cursor: pointer;
 }
 
-input[type="date"].input-control::-webkit-datetime-edit,
-input[type="date"].input-control::-webkit-datetime-edit-fields-wrapper,
-input[type="date"].input-control::-webkit-datetime-edit-text,
-input[type="date"].input-control::-webkit-datetime-edit-month-field,
-input[type="date"].input-control::-webkit-datetime-edit-day-field,
-input[type="date"].input-control::-webkit-datetime-edit-year-field {
-  pointer-events: none;
+.date-calendar-shift:hover {
+  border-color: color-mix(in srgb, var(--ink) 38%, var(--line));
+}
+
+.date-calendar-weekdays,
+.date-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.15rem;
+}
+
+.date-calendar-weekdays {
+  margin-bottom: 0.25rem;
+  color: var(--mute);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.date-calendar-day {
+  min-height: 2.1rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.date-calendar-day:hover {
+  background: color-mix(in srgb, var(--paper) 55%, white);
+}
+
+.date-calendar-day.is-today:not(.is-selected) {
+  box-shadow: inset 0 0 0 1px var(--copper);
+}
+
+.date-calendar-day.is-selected {
+  background: var(--forest);
+  color: #f4eee1;
+}
+
+.date-calendar-day.is-selected:hover {
+  background: var(--forest-2);
 }
 
 input[type="checkbox"] {

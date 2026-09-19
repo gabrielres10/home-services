@@ -53,7 +53,7 @@ export function PeriodForm({
           name="starts_on"
           required
           value={startsOn}
-          onChange={(event) => setStartsOn(event.target.value)}
+          onChange={setStartsOn}
         />
         <span className="help-line">
           El día de la lectura con la que empieza este período.
@@ -65,7 +65,7 @@ export function PeriodForm({
           name="ends_on"
           required
           value={endsOn}
-          onChange={(event) => setEndsOn(event.target.value)}
+          onChange={setEndsOn}
         />
         <span className="help-line">
           El día de la lectura con la que termina. Suele ser el del recibo.

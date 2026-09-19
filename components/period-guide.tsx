@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export type GuideStepState = "done" | "current" | "wait" | "optional";
 
 export type GuideStep = {
@@ -63,9 +65,15 @@ export function PeriodGuide({
           </li>
         ))}
       </ol>
-      <a href={nextHref} className="btn btn-primary btn-full period-guide-cta">
-        {nextLabel}
-      </a>
+      {nextHref.startsWith("#") ? (
+        <a href={nextHref} className="btn btn-primary btn-full period-guide-cta">
+          {nextLabel}
+        </a>
+      ) : (
+        <Link href={nextHref} className="btn btn-primary btn-full period-guide-cta">
+          {nextLabel}
+        </Link>
+      )}
     </nav>
   );
 }

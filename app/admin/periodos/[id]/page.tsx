@@ -485,8 +485,8 @@ function buildAdminGuide(input: {
       nextTitle: "Período cerrado",
       nextDetail:
         "Ya no se cambia el recibo ni las lecturas. Si hace falta corregir algo, reabre el período.",
-      nextHref: "#cierre",
-      nextLabel: "Ir al cierre",
+      nextHref: "/admin",
+      nextLabel: "Ir al inicio",
       steps,
     };
   }
