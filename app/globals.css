@@ -1510,6 +1510,42 @@ details[open] > .archive-toggle::before {
   font-size: 0.88rem;
 }
 
+.fieldset-sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1.25rem;
+  margin: 1.1rem 0 0;
+  padding: 0.9rem 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.fieldset-sum dl {
+  margin: 0;
+}
+
+.fieldset-sum dt {
+  color: var(--mute);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.fieldset-sum dd {
+  margin: 0.15rem 0 0;
+  font-size: 1.18rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fieldset-sum > p {
+  margin: 0;
+  color: var(--mute);
+  font-size: 0.86rem;
+  max-width: 22rem;
+}
+
 .save-hint {
   margin: 0 0 0.7rem;
   color: var(--mute);

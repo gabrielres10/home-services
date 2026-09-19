@@ -10,10 +10,11 @@ import {
   billPdfPath,
 } from "@/lib/storage/paths";
 import { billChargeFieldName, billChargeFields } from "@/lib/domain/bill-charges";
-import { numberToInputRaw } from "@/lib/domain/numeric";
+import { numberToInputRaw, sumMoneyRaws } from "@/lib/domain/numeric";
 import { countExtractedValues, parseEmcaliBillText } from "@/lib/billing/emcali-parser";
 import { describeExtractError, readPdfPageOneText } from "@/lib/billing/pdf-reader";
 import type { ExtractedBillDraft } from "@/lib/billing/extractor";
+import { Amount } from "@/components/amount";
 import { NumericInput } from "@/components/numeric-input";
 import { SubmitButton } from "@/components/submit-button";
 
@@ -71,6 +72,27 @@ function draftToFilled(draft: ExtractedBillDraft, services: ServiceField[]): Fil
   };
 }
 
+function chargeFieldsFor(service: ServiceField): ChargeField[] {
+  if (service.charges && service.charges.length > 0) {
+    return service.charges;
+  }
+  return billChargeFields(service.code).map((field) => ({ ...field, value: "" }));
+}
+
+function chargeRawsFromServices(
+  services: ServiceField[],
+  filled: FilledBill | null,
+): Record<string, string> {
+  const raws: Record<string, string> = {};
+  for (const service of services) {
+    for (const field of chargeFieldsFor(service)) {
+      const name = billChargeFieldName(service.code, field.code);
+      raws[name] = filled?.charges[name] ?? field.value;
+    }
+  }
+  return raws;
+}
+
 function extractStatusMessage(count: number): string {
   if (count === 0) {
     return "Leí el PDF, pero no reconocí los renglones. Completa los números a mano.";
@@ -96,6 +118,7 @@ export function BillForm({
   locked?: boolean;
 }) {
   const [filled, setFilled] = useState<FilledBill | null>(null);
+  const [chargeRaws, setChargeRaws] = useState(() => chargeRawsFromServices(services, null));
   const [fieldKey, setFieldKey] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [extractStatus, setExtractStatus] = useState<"idle" | "reading" | "ok" | "error">(
@@ -119,7 +142,9 @@ export function BillForm({
       setExtractMessage(extractStatusMessage(0));
       return;
     }
-    setFilled(draftToFilled(draft, services));
+    const nextFilled = draftToFilled(draft, services);
+    setFilled(nextFilled);
+    setChargeRaws(chargeRawsFromServices(services, nextFilled));
     setFieldKey((value) => value + 1);
     setExtractStatus("ok");
     setExtractMessage(extractStatusMessage(count));
@@ -239,13 +264,12 @@ export function BillForm({
       </p>
       <div className="stack-lg">
         {services.map((service) => {
-          const fields =
-            service.charges && service.charges.length > 0
-              ? service.charges
-              : billChargeFields(service.code).map((field) => ({
-                  ...field,
-                  value: "",
-                }));
+          const fields = chargeFieldsFor(service);
+          const sectionSum = sumMoneyRaws(
+            fields.map(
+              (field) => chargeRaws[billChargeFieldName(service.code, field.code)] ?? "",
+            ),
+          );
           return (
             <fieldset key={service.code} className="fieldset-panel">
               <legend>{service.name}</legend>
@@ -279,10 +303,24 @@ export function BillForm({
                         defaultValue={filled?.charges[name] ?? field.value}
                         required
                         disabled={locked || extractStatus === "reading"}
+                        onValueChange={(raw) => {
+                          setChargeRaws((current) => ({ ...current, [name]: raw }));
+                        }}
                       />
                     </label>
                   );
                 })}
+              </div>
+              <div className="fieldset-sum">
+                <dl>
+                  <div>
+                    <dt>Suma de importes</dt>
+                    <dd>
+                      <Amount value={sectionSum} kind="money" />
+                    </dd>
+                  </div>
+                </dl>
+                <p>Compárala con el TOTAL de {service.name} en el PDF.</p>
               </div>
             </fieldset>
           );

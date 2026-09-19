@@ -7,6 +7,7 @@ import {
   isNumericDraft,
   numberToInputRaw,
   parseNumericRaw,
+  sumMoneyRaws,
 } from "@/lib/domain/numeric";
 
 describe("isNumericDraft", () => {
@@ -51,6 +52,16 @@ describe("formatGroupedFromRaw", () => {
     expect(formatGroupedFromRaw("100000,5", "money")).toBe("$100.000,5");
     expect(formatGroupedFromRaw("-300", "money")).toBe("-$300");
     expect(formatGroupedFromRaw("1603,6", "quantity")).toBe("1.603,6");
+  });
+});
+
+describe("sumMoneyRaws", () => {
+  it("suma importes de una sección y redondea a centavos", () => {
+    expect(
+      sumMoneyRaws(["3821,30", "17120,16", "23406,53", "-6420,06", "0", "0,07"]),
+    ).toBe(37928);
+    expect(sumMoneyRaws(["73319,16", "380486,83", "0", "0", "0,15"])).toBe(453806.14);
+    expect(sumMoneyRaws(["", "-", "12,"])).toBeNull();
   });
 });
 

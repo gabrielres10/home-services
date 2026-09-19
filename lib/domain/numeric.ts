@@ -75,6 +75,23 @@ export function formatQuantityValue(value: number, maximumFractionDigits = 3): s
   );
 }
 
+export function sumMoneyRaws(raws: readonly string[]): number | null {
+  let cents = 0;
+  let counted = 0;
+  for (const raw of raws) {
+    const parsed = parseNumericRaw(raw);
+    if (parsed === null) {
+      continue;
+    }
+    counted += 1;
+    cents += Math.round(parsed * 100);
+  }
+  if (counted === 0) {
+    return null;
+  }
+  return cents / 100;
+}
+
 export function formatMoneyValue(value: number, maximumFractionDigits = 2): string {
   return (
     formatGroupedFromRaw(numberToInputRaw(value, maximumFractionDigits), "money") ??

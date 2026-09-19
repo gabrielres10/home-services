@@ -15,6 +15,7 @@ export function NumericInput({
   disabled = false,
   kind = "quantity",
   className = "input-control input-figure",
+  onValueChange,
 }: {
   name: string;
   defaultValue?: string;
@@ -22,6 +23,7 @@ export function NumericInput({
   disabled?: boolean;
   kind?: "quantity" | "money";
   className?: string;
+  onValueChange?: (raw: string) => void;
 }) {
   const [raw, setRaw] = useState(defaultValue);
   const [hint, setHint] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export function NumericInput({
   function accept(next: string) {
     setRaw(next);
     setHint(null);
+    onValueChange?.(next);
   }
 
   function onBeforeInput(event: React.InputEvent<HTMLInputElement>) {
