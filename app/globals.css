@@ -1340,7 +1340,7 @@ details[open] > .archive-toggle::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
+  gap: 0.65rem;
   color: var(--mute);
   font-size: 0.62rem;
   font-weight: 700;
@@ -1350,6 +1350,7 @@ details[open] > .archive-toggle::before {
 
 .guide-check {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 1.05rem;
@@ -1770,9 +1771,12 @@ details[open] > .archive-toggle::before {
     margin-top: 0.15rem;
   }
 
-  .guide-copy,
-  .guide-state {
+  .guide-copy {
     display: block;
+  }
+
+  .guide-state {
+    display: inline-flex;
   }
 
   .guide-steps {
