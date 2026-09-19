@@ -144,7 +144,7 @@ export function BillForm({
     const count = countExtractedValues(draft);
     if (count === 0) {
       setExtractStatus("error");
-      setExtractMessage(extractStatusMessage(0));
+      setExtractMessage(extractStatusMessage(0, alreadySaved));
       return;
     }
     const nextFilled = draftToFilled(draft, services);

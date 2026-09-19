@@ -36,7 +36,7 @@ export async function readPdfPageOneText(file: File): Promise<string> {
     return text;
   } finally {
     try {
-      await pdf.destroy();
+      await loadingTask.destroy();
     } catch {
       /* el texto ya está leído */
     }

@@ -36,11 +36,14 @@ export function groupIssuesForDisplay(issues: ValidationIssue[]): IssueNotice[] 
   const notices: IssueNotice[] = [];
 
   if (billIncomplete.length === 1) {
-    notices.push({
-      severity: billIncomplete[0].severity,
-      title: billIncomplete[0].message,
-      items: [],
-    });
+    const only = billIncomplete[0];
+    if (only) {
+      notices.push({
+        severity: only.severity,
+        title: only.message,
+        items: [],
+      });
+    }
   } else if (billIncomplete.length > 1) {
     notices.push(summarizeBillIncomplete(billIncomplete));
   }
@@ -68,7 +71,10 @@ function summarizeBillIncomplete(issues: ValidationIssue[]): IssueNotice {
 
   const chargeIssues = issues.filter((issue) => issue.code === "bill.charge_missing");
   if (chargeIssues.length === 1) {
-    items.push(chargeIssues[0].message.replace(/^Falta el importe de /, "").replace(/\.$/, ""));
+    const onlyCharge = chargeIssues[0];
+    if (onlyCharge) {
+      items.push(onlyCharge.message.replace(/^Falta el importe de /, "").replace(/\.$/, ""));
+    }
   } else if (chargeIssues.length > 1) {
     items.push(`${chargeIssues.length} importes en pesos`);
   }
@@ -118,11 +124,13 @@ function joinSpanish(items: string[]): string {
   if (items.length === 0) {
     return "";
   }
+  const first = items[0];
   if (items.length === 1) {
-    return items[0];
+    return first ?? "";
   }
+  const last = items[items.length - 1] ?? "";
   if (items.length === 2) {
-    return `${items[0]} y ${items[1]}`;
+    return `${first} y ${last}`;
   }
-  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+  return `${items.slice(0, -1).join(", ")} y ${last}`;
 }
