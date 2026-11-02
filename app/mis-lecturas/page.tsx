@@ -6,9 +6,9 @@ import { ReadingForm } from "@/components/reading-form";
 import { ReadingStatusBadge, MissingBadge } from "@/components/status-badge";
 import { PageMain, WorkPanel } from "@/components/ui";
 import { loadCatalog, loadPreviousApprovedValue, hasAnyEarlierPeriod } from "@/lib/data/catalog";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { signedUrl } from "@/lib/data/period-detail";
-import { PHOTOS_BUCKET } from "@/lib/storage/paths";
+import { db } from "@/lib/db/pool";
+import type { BillingPeriodRow, MeterReadingRow, ReadingPhotoRow } from "@/lib/db/types";
+import { readingPhotoUrl } from "@/lib/storage/paths";
 import { currentLessThanPreviousIssue, previousReadingIssue } from "@/lib/domain/validation";
 import { floorDisplayName } from "@/lib/domain/floors";
 import { formatDate, previousReadingDisplay } from "@/lib/format";
@@ -38,30 +38,31 @@ export default async function MyReadingsPage() {
     );
   }
 
-  const supabase = await createServerSupabaseClient();
   const catalog = await loadCatalog();
   const floorMeters = catalog.meters.filter((meter) => meter.floorId === user.floorId);
   const floor = catalog.floors.find((item) => item.id === user.floorId);
 
-  const { data: periods, error } = await supabase
-    .from("billing_periods")
-    .select("*")
-    .order("starts_on", { ascending: false });
-  if (error) {
-    throw new Error(error.message);
-  }
+  const periods = await db.query<BillingPeriodRow>(
+    "select * from billing_periods order by starts_on desc",
+  );
 
-  const { data: readings } = await supabase
-    .from("meter_readings")
-    .select("*")
-    .eq("floor_id", user.floorId);
+  // Solo lo de su piso: aquí no hay RLS que filtre por el usuario.
+  const readings = await db.query<MeterReadingRow>(
+    "select * from meter_readings where floor_id = $1",
+    [user.floorId],
+  );
+  const photos = await db.query<ReadingPhotoRow>(
+    `select p.*
+     from reading_photos p
+     join meter_readings r on r.id = p.reading_id
+     where r.floor_id = $1`,
+    [user.floorId],
+  );
 
-  const { data: photos } = await supabase.from("reading_photos").select("*");
+  const openPeriods = periods.filter((period) => period.status === "open");
+  const otherPeriods = periods.filter((period) => period.status !== "open");
 
-  const openPeriods = (periods ?? []).filter((period) => period.status === "open");
-  const otherPeriods = (periods ?? []).filter((period) => period.status !== "open");
-
-  async function renderPeriod(period: NonNullable<typeof periods>[number], editable: boolean) {
+  async function renderPeriod(period: BillingPeriodRow, editable: boolean) {
     const earlier = await hasAnyEarlierPeriod(period.starts_on);
     return (
       <WorkPanel
@@ -73,7 +74,7 @@ export default async function MyReadingsPage() {
         {await Promise.all(
           floorMeters.map(async (meter) => {
           const service = catalog.services.find((item) => item.id === meter.serviceId);
-          const reading = (readings ?? []).find(
+          const reading = readings.find(
             (row) => row.period_id === period.id && row.service_id === meter.serviceId,
           );
           const previous = await loadPreviousApprovedValue({
@@ -82,9 +83,9 @@ export default async function MyReadingsPage() {
             currentPeriodStartsOn: period.starts_on,
           });
           const photo = reading
-            ? (photos ?? []).find((item) => item.id === reading.current_photo_id)
+            ? photos.find((item) => item.id === reading.current_photo_id)
             : undefined;
-          const photoUrl = await signedUrl(PHOTOS_BUCKET, photo?.storage_path ?? null);
+          const photoUrl = photo ? readingPhotoUrl(photo.id) : null;
           const issues = [];
           if (reading && previous !== null) {
             const warning = currentLessThanPreviousIssue(Number(reading.value), previous);
@@ -111,7 +112,7 @@ export default async function MyReadingsPage() {
               </div>
               {photoUrl && !(editable && reading?.status !== "approved") ? (
                 <>
-                  {/* URL firmada y privada: next/image no aplica. */}
+                  {/* Ruta privada con sesión: next/image no aplica. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={photoUrl}

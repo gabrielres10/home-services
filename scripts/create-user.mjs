@@ -1,7 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
-import { loadEnvLocal } from "./load-env-local.mjs";
+import { randomBytes, scrypt } from "node:crypto";
+import { promisify } from "node:util";
+import { createClient, describeError, explainConnectionError } from "./db-connection.mjs";
 
-const AUTH_USERNAME_DOMAIN = "vivienda.local";
+const scryptAsync = promisify(scrypt);
+
 const USERNAME_PATTERN = /^[a-z][a-z0-9_-]{1,31}$/;
 
 const ROLES = {
@@ -31,8 +33,7 @@ function usage() {
 Nombre opcional:
   npm run user:piso-1 -- nasly "Contraseña" "Nasly"
 
-Necesitas SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_SECRET_KEY) en .env.local.
-Es la clave secret / service_role del dashboard, no la anon.`);
+Necesitas DATABASE_URL en .env.local y haber corrido npm run db:schema.`);
 }
 
 function normalizeUsername(raw) {
@@ -41,101 +42,44 @@ function normalizeUsername(raw) {
   return at === -1 ? trimmed : trimmed.slice(0, at);
 }
 
-function emailForUsername(username) {
-  return `${username}@${AUTH_USERNAME_DOMAIN}`;
+// Mismo formato que lib/auth/password.ts: scrypt$N$r$p$sal$hash (base64).
+async function hashPassword(password) {
+  const cost = 2 ** 15;
+  const blockSize = 8;
+  const parallelism = 1;
+  const salt = randomBytes(16);
+  const key = await scryptAsync(password, salt, 64, {
+    N: cost,
+    r: blockSize,
+    p: parallelism,
+    maxmem: 256 * cost * blockSize,
+  });
+  return ["scrypt", cost, blockSize, parallelism, salt.toString("base64"), key.toString("base64")].join("$");
 }
 
-function isDuplicateUserError(message) {
-  const lower = message.toLowerCase();
-  return (
-    lower.includes("already been registered") ||
-    lower.includes("already registered") ||
-    lower.includes("user already exists")
-  );
-}
-
-async function findUserByEmail(supabase, email) {
-  const target = email.toLowerCase();
-  let page = 1;
-  const perPage = 200;
-
-  while (page <= 20) {
-    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
-    if (error) {
-      throw new Error(`No pude listar usuarios: ${error.message}`);
-    }
-    const found = data.users.find((user) => user.email?.toLowerCase() === target);
-    if (found) {
-      return found;
-    }
-    if (data.users.length < perPage) {
-      return null;
-    }
-    page += 1;
-  }
-
-  return null;
-}
-
-async function userById(supabase, id) {
-  const { data, error } = await supabase.auth.admin.getUserById(id);
-  if (error || !data?.user) {
-    return null;
-  }
-  return data.user;
-}
-
-async function findExistingAccount(supabase, spec, username, syntheticEmail) {
-  const { data: byUsername } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("username", username)
-    .maybeSingle();
-  if (byUsername?.id) {
-    const found = await userById(supabase, byUsername.id);
-    if (found) {
-      return found;
-    }
-  }
-
-  const bySynthetic = await findUserByEmail(supabase, syntheticEmail);
-  if (bySynthetic) {
-    return bySynthetic;
+async function findExistingUser(client, spec, username) {
+  const byUsername = await client.query("select id from users where username = $1", [username]);
+  if (byUsername.rows[0]) {
+    return byUsername.rows[0].id;
   }
 
   if (spec.role === "admin") {
-    const { data: admin } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("role", "admin")
-      .limit(1)
-      .maybeSingle();
-    if (admin?.id) {
-      const found = await userById(supabase, admin.id);
-      if (found) {
-        return found;
-      }
+    const admin = await client.query("select id from users where role = 'admin' limit 1");
+    if (admin.rows[0]) {
+      return admin.rows[0].id;
     }
   }
 
   if (spec.floorCode) {
-    const { data: floor } = await supabase
-      .from("floors")
-      .select("id")
-      .eq("code", spec.floorCode)
-      .maybeSingle();
-    if (floor?.id) {
-      const { data: membership } = await supabase
-        .from("floor_memberships")
-        .select("user_id")
-        .eq("floor_id", floor.id)
-        .maybeSingle();
-      if (membership?.user_id) {
-        const found = await userById(supabase, membership.user_id);
-        if (found) {
-          return found;
-        }
-      }
+    const member = await client.query(
+      `select m.user_id
+       from floor_memberships m
+       join floors f on f.id = m.floor_id
+       where f.code = $1`,
+      [spec.floorCode],
+    );
+    if (member.rows[0]) {
+      return member.rows[0].user_id;
     }
   }
 
@@ -143,8 +87,6 @@ async function findExistingAccount(supabase, spec, username, syntheticEmail) {
 }
 
 async function main() {
-  loadEnvLocal();
-
   const kind = process.argv[2];
   const username = normalizeUsername(process.argv[3] ?? "");
   const password = process.argv[4];
@@ -161,121 +103,75 @@ async function main() {
     );
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
-
-  if (!url) {
-    throw new Error("Falta NEXT_PUBLIC_SUPABASE_URL en .env.local.");
-  }
-  if (!serviceKey) {
-    throw new Error(
-      "Falta SUPABASE_SERVICE_ROLE_KEY en .env.local. Añade la Secret key (sb_secret_...) o la legacy service_role. No uses la anon/publishable.",
-    );
-  }
-
-  if (!serviceKey.startsWith("eyJ") && !serviceKey.startsWith("sb_secret_")) {
-    console.warn(
-      "Aviso: esa clave no parece service_role ni secret. No uses la anon/publishable para este comando.",
-    );
-  }
-
-  const supabase = createClient(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
   const fullName = fullNameArg || spec.defaultName;
-  const email = emailForUsername(username);
-  let user = await findExistingAccount(supabase, spec, username, email);
-  let created = false;
+  const passwordHash = await hashPassword(password);
 
-  if (user) {
-    const { error: passwordError } = await supabase.auth.admin.updateUserById(user.id, {
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: fullName, username },
-    });
-    if (passwordError) {
-      throw new Error(`El usuario existe, pero no pude actualizarlo: ${passwordError.message}`);
-    }
-  } else {
-    const createdResult = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: fullName, username },
-    });
-    if (createdResult.error) {
-      if (!isDuplicateUserError(createdResult.error.message)) {
-        throw new Error(`No se pudo crear el usuario: ${createdResult.error.message}`);
-      }
-      user = await findUserByEmail(supabase, email);
-      if (!user) {
+  const client = createClient();
+  await client.connect();
+  try {
+    await client.query("begin");
+
+    let floorId = null;
+    if (spec.floorCode) {
+      const floor = await client.query("select id from floors where code = $1", [spec.floorCode]);
+      floorId = floor.rows[0]?.id ?? null;
+      if (!floorId) {
         throw new Error(
-          "Ese usuario ya existe en Auth, pero no pude obtener su id. Revísalo en Authentication → Users.",
+          `No encontré el piso ${spec.floorCode}. ¿Ejecutaste npm run db:schema?`,
         );
       }
-      const { error: passwordError } = await supabase.auth.admin.updateUserById(user.id, {
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: fullName, username },
-      });
-      if (passwordError) {
-        throw new Error(`El usuario existe, pero no pude actualizarlo: ${passwordError.message}`);
-      }
-    } else {
-      user = createdResult.data.user;
-      created = true;
     }
-  }
 
-  if (!user) {
-    throw new Error("Supabase no devolvió el usuario.");
-  }
+    let userId = await findExistingUser(client, spec, username);
+    const created = userId === null;
 
-  const { error: profileError } = await supabase.from("profiles").upsert({
-    id: user.id,
-    full_name: fullName,
-    role: spec.role,
-    username,
-  });
-  if (profileError) {
-    throw new Error(
-      `Usuario creado en Auth, pero falló el perfil: ${profileError.message}`,
-    );
-  }
+    if (created) {
+      const inserted = await client.query(
+        `insert into users (username, full_name, role, password_hash)
+         values ($1, $2, $3, $4)
+         returning id`,
+        [username, fullName, spec.role, passwordHash],
+      );
+      userId = inserted.rows[0].id;
+    } else {
+      await client.query(
+        `update users
+         set username = $2, full_name = $3, role = $4, password_hash = $5
+         where id = $1`,
+        [userId, username, fullName, spec.role, passwordHash],
+      );
+      // Cambiar la contraseña cierra las sesiones abiertas de esa cuenta.
+      await client.query("delete from user_sessions where user_id = $1", [userId]);
+    }
 
-  if (spec.floorCode) {
-    const { data: floor, error: floorError } = await supabase
-      .from("floors")
-      .select("id, name")
-      .eq("code", spec.floorCode)
-      .maybeSingle();
-    if (floorError || !floor) {
-      throw new Error(
-        `No encontré el piso ${spec.floorCode}. ¿Ejecutaste supabase/migrations/001_schema.sql?`,
+    if (floorId) {
+      await client.query(
+        `insert into floor_memberships (user_id, floor_id)
+         values ($1, $2)
+         on conflict (user_id) do update set floor_id = excluded.floor_id`,
+        [userId, floorId],
       );
     }
-    const { error: membershipError } = await supabase.from("floor_memberships").upsert({
-      user_id: user.id,
-      floor_id: floor.id,
-    });
-    if (membershipError) {
-      throw new Error(`No se pudo asociar el piso: ${membershipError.message}`);
-    }
-  }
 
-  console.log(created ? "Usuario creado." : "El usuario ya existía; se actualizó.");
-  console.log(`Usuario: ${username}`);
-  console.log(`Nombre:  ${fullName}`);
-  console.log(`Rol:     ${spec.role}`);
-  console.log(`Piso:    ${spec.floorCode ?? "(ninguno)"}`);
-  console.log(`UUID:    ${user.id}`);
+    await client.query("commit");
+
+    console.log(created ? "Usuario creado." : "El usuario ya existía; se actualizó.");
+    console.log(`Usuario: ${username}`);
+    console.log(`Nombre:  ${fullName}`);
+    console.log(`Rol:     ${spec.role}`);
+    console.log(`Piso:    ${spec.floorCode ?? "(ninguno)"}`);
+    console.log(`ID:      ${userId}`);
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  } finally {
+    await client.end();
+  }
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  const message = describeError(error);
+  console.error(message);
+  explainConnectionError(message);
   process.exit(1);
 });

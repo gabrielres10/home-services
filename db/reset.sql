@@ -1,6 +1,6 @@
--- Borra datos de prueba y vuelve a sembrar catálogo.
--- No toca el esquema (tablas, RLS, funciones, buckets).
--- Los archivos de Storage se borran por API desde scripts/reset-db.mjs.
+-- Borra datos de prueba y vuelve a sembrar el catálogo.
+-- No toca el esquema (tablas, funciones, triggers).
+-- Borra también usuarios, sesiones y archivos guardados.
 
 begin;
 
@@ -14,12 +14,12 @@ truncate table
   public.billing_periods,
   public.floor_memberships,
   public.floor_service_meters,
-  public.profiles,
+  public.user_sessions,
+  public.users,
+  public.stored_files,
   public.services,
   public.floors
 restart identity cascade;
-
-delete from auth.users;
 
 insert into public.floors (code, name, occupant_name, sort_order)
 values

@@ -9,26 +9,32 @@ import {
   isServiceCode,
 } from "@/lib/domain/bill-charges";
 import { parseMoneyAmount, parseReadingValue } from "@/lib/domain/validation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { db, dbErrorMessage, transaction } from "@/lib/db/pool";
+import type { BillRow, BillingPeriodRow } from "@/lib/db/types";
 import { loadCatalog } from "@/lib/data/catalog";
-import { billPdfPath } from "@/lib/storage/paths";
+import { isUuid } from "@/lib/domain/ids";
+import { putFile } from "@/lib/storage/files";
+import { BILLS_BUCKET, MAX_BILL_PDF_BYTES, billPdfPath } from "@/lib/storage/paths";
+
+const PDF_SIGNATURE = "%PDF-";
 
 export async function saveBill(formData: FormData): Promise<{ error: string } | void> {
   const admin = await requireAdmin();
   const periodId = String(formData.get("period_id") ?? "");
   const notes = String(formData.get("notes") ?? "").trim();
-  const uploadedPath = String(formData.get("pdf_storage_path") ?? "").trim();
+  const pdf = formData.get("pdf");
 
   if (!periodId) {
     return { error: "Falta el período." };
   }
+  if (!isUuid(periodId)) {
+    return { error: "No se encontró el período." };
+  }
 
-  const supabase = await createServerSupabaseClient();
-  const { data: period } = await supabase
-    .from("billing_periods")
-    .select("status")
-    .eq("id", periodId)
-    .maybeSingle();
+  const period = await db.queryOne<Pick<BillingPeriodRow, "status">>(
+    "select status from billing_periods where id = $1",
+    [periodId],
+  );
   if (!period) {
     return { error: "No se encontró el período." };
   }
@@ -80,18 +86,23 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
     otherServicesApSubtotal: otherServicesApParsed.ok ? otherServicesApParsed.value : null,
   });
 
-  const { data: existing } = await supabase
-    .from("bills")
-    .select("*")
-    .eq("period_id", periodId)
-    .maybeSingle();
+  const existing = await db.queryOne<BillRow>("select * from bills where period_id = $1", [
+    periodId,
+  ]);
 
-  const expectedPath = billPdfPath(periodId);
-  if (uploadedPath && uploadedPath !== expectedPath) {
-    return { error: "La ruta del PDF no es válida." };
+  let pdfData: Buffer | null = null;
+  if (pdf instanceof File && pdf.size > 0) {
+    if (pdf.size > MAX_BILL_PDF_BYTES) {
+      return { error: "El PDF no puede superar 10 MB." };
+    }
+    pdfData = Buffer.from(await pdf.arrayBuffer());
+    // La especificación admite bytes antes de la marca, pero solo en el primer KB.
+    if (!pdfData.subarray(0, 1024).includes(PDF_SIGNATURE)) {
+      return { error: "El recibo debe ser un archivo PDF." };
+    }
   }
 
-  const pdfPath = uploadedPath || existing?.pdf_storage_path || null;
+  const pdfPath = pdfData ? billPdfPath(periodId) : (existing?.pdf_storage_path ?? null);
   if (!pdfPath) {
     return { error: "Debes cargar el PDF del recibo." };
   }
@@ -115,91 +126,71 @@ export async function saveBill(formData: FormData): Promise<{ error: string } | 
     return { error: "Introduce el subtotal de otros servicios + AP (alumbrado público)." };
   }
 
-  const { data: bill, error: billError } = existing
-    ? await supabase
-        .from("bills")
-        .update({
-          pdf_storage_path: pdfPath,
-          uploaded_by: admin.id,
-          uploaded_at: new Date().toISOString(),
-          notes: notes || null,
-          other_services_ap_subtotal: extracted.otherServicesApSubtotal,
-        })
-        .eq("id", existing.id)
-        .select("id")
-        .single()
-    : await supabase
-        .from("bills")
-        .insert({
-          period_id: periodId,
-          pdf_storage_path: pdfPath,
-          uploaded_by: admin.id,
-          uploaded_at: new Date().toISOString(),
-          notes: notes || null,
-          other_services_ap_subtotal: extracted.otherServicesApSubtotal,
-        })
-        .select("id")
-        .single();
-
-  if (billError || !bill) {
-    return { error: billError?.message ?? "No se pudo guardar el recibo." };
-  }
-
-  const { error: deleteTotalsError } = await supabase
-    .from("bill_service_totals")
-    .delete()
-    .eq("bill_id", bill.id);
-
-  if (deleteTotalsError) {
-    return { error: deleteTotalsError.message };
-  }
-
-  const { error: deleteChargesError } = await supabase
-    .from("bill_service_charges")
-    .delete()
-    .eq("bill_id", bill.id);
-
-  if (deleteChargesError) {
-    return { error: deleteChargesError.message };
-  }
-
-  const rows = extracted.totals.flatMap((total) => {
+  const totalRows = extracted.totals.flatMap((total) => {
     const service = catalog.services.find((item) => item.code === total.serviceCode);
     if (!service || total.totalConsumption === null) {
       return [];
     }
-    return [
-      {
-        bill_id: bill.id,
-        service_id: service.id,
-        total_consumption: total.totalConsumption,
-      },
-    ];
+    return [{ serviceId: service.id, totalConsumption: total.totalConsumption }];
   });
-
-  const { error: totalsError } = await supabase.from("bill_service_totals").insert(rows);
-  if (totalsError) {
-    return { error: totalsError.message };
-  }
 
   const chargeRows = extracted.charges.flatMap((charge) => {
     const service = catalog.services.find((item) => item.code === charge.serviceCode);
     if (!service || charge.amount === null) {
       return [];
     }
-    return [
-      {
-        bill_id: bill.id,
-        service_id: service.id,
-        charge_code: charge.chargeCode,
-        amount: charge.amount,
-      },
-    ];
+    return [{ serviceId: service.id, chargeCode: charge.chargeCode, amount: charge.amount }];
   });
 
-  const { error: chargesError } = await supabase.from("bill_service_charges").insert(chargeRows);
-  if (chargesError) {
-    return { error: chargesError.message };
+  // PDF, recibo, totales e importes se guardan juntos o no se guarda nada.
+  try {
+    await transaction(admin.id, async (tx) => {
+      if (pdfData) {
+        await putFile(tx, {
+          bucket: BILLS_BUCKET,
+          path: pdfPath,
+          contentType: "application/pdf",
+          data: pdfData,
+        });
+      }
+
+      const bill = await tx.queryOne<{ id: string }>(
+        `insert into bills
+           (period_id, pdf_storage_path, uploaded_by, uploaded_at, notes, other_services_ap_subtotal)
+         values ($1, $2, $3, now(), $4, $5)
+         on conflict (period_id) do update
+           set pdf_storage_path = excluded.pdf_storage_path,
+               uploaded_by = excluded.uploaded_by,
+               uploaded_at = excluded.uploaded_at,
+               notes = excluded.notes,
+               other_services_ap_subtotal = excluded.other_services_ap_subtotal
+         returning id`,
+        [periodId, pdfPath, admin.id, notes || null, extracted.otherServicesApSubtotal],
+      );
+      if (!bill) {
+        throw new Error("No se pudo guardar el recibo.");
+      }
+
+      await tx.query("delete from bill_service_totals where bill_id = $1", [bill.id]);
+      await tx.query("delete from bill_service_charges where bill_id = $1", [bill.id]);
+
+      for (const row of totalRows) {
+        await tx.query(
+          `insert into bill_service_totals (bill_id, service_id, total_consumption)
+           values ($1, $2, $3)`,
+          [bill.id, row.serviceId, row.totalConsumption],
+        );
+      }
+      for (const row of chargeRows) {
+        await tx.query(
+          `insert into bill_service_charges (bill_id, service_id, charge_code, amount)
+           values ($1, $2, $3, $4)`,
+          [bill.id, row.serviceId, row.chargeCode, row.amount],
+        );
+      }
+    });
+  } catch (error) {
+    return { error: dbErrorMessage(error) };
   }
 
   revalidatePath(`/admin/periodos/${periodId}`);

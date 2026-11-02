@@ -11,60 +11,65 @@ import {
   parseReadingValue,
   validateReadingDraft,
 } from "@/lib/domain/validation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { PHOTOS_BUCKET, readingPhotoPath } from "@/lib/storage/paths";
+import {
+  UNIQUE_VIOLATION,
+  db,
+  dbErrorCode,
+  dbErrorMessage,
+  transaction,
+  type Queryable,
+} from "@/lib/db/pool";
+import type { BillingPeriodRow, MeterReadingRow } from "@/lib/db/types";
+import { isUuid } from "@/lib/domain/ids";
+import { putFile } from "@/lib/storage/files";
+import {
+  MAX_PHOTO_BYTES,
+  PHOTOS_BUCKET,
+  readingPhotoPath,
+} from "@/lib/storage/paths";
+
+const JPEG_SIGNATURE = [0xff, 0xd8, 0xff];
+
+function isJpeg(data: Buffer): boolean {
+  return JPEG_SIGNATURE.every((byte, index) => data[index] === byte);
+}
 
 async function attachPhoto(input: {
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
+  tx: Queryable;
   readingId: string;
   floorId: string;
   periodId: string;
   serviceId: string;
   userId: string;
-  photo: File;
-}): Promise<{ error: string } | { photoId: string }> {
-  const fileId = crypto.randomUUID();
+  data: Buffer;
+}): Promise<void> {
   const storagePath = readingPhotoPath({
     floorId: input.floorId,
     periodId: input.periodId,
     serviceId: input.serviceId,
-    fileId,
+    fileId: crypto.randomUUID(),
   });
-  const buffer = Buffer.from(await input.photo.arrayBuffer());
-  const { error: uploadError } = await input.supabase.storage
-    .from(PHOTOS_BUCKET)
-    .upload(storagePath, buffer, {
-      contentType: "image/jpeg",
-      upsert: false,
-    });
-  if (uploadError) {
-    return { error: `No se pudo guardar la fotografía: ${uploadError.message}` };
+  await putFile(input.tx, {
+    bucket: PHOTOS_BUCKET,
+    path: storagePath,
+    contentType: "image/jpeg",
+    data: input.data,
+  });
+
+  const photo = await input.tx.queryOne<{ id: string }>(
+    `insert into reading_photos (reading_id, storage_path, uploaded_by)
+     values ($1, $2, $3)
+     returning id`,
+    [input.readingId, storagePath, input.userId],
+  );
+  if (!photo) {
+    throw new Error("No se pudo registrar la fotografía.");
   }
 
-  const { data: photo, error: photoError } = await input.supabase
-    .from("reading_photos")
-    .insert({
-      reading_id: input.readingId,
-      storage_path: storagePath,
-      uploaded_by: input.userId,
-    })
-    .select("id")
-    .single();
-
-  if (photoError || !photo) {
-    return { error: photoError?.message ?? "No se pudo registrar la fotografía." };
-  }
-
-  const { error: updateError } = await input.supabase
-    .from("meter_readings")
-    .update({ current_photo_id: photo.id })
-    .eq("id", input.readingId);
-
-  if (updateError) {
-    return { error: updateError.message };
-  }
-
-  return { photoId: photo.id };
+  await input.tx.query("update meter_readings set current_photo_id = $1 where id = $2", [
+    photo.id,
+    input.readingId,
+  ]);
 }
 
 export async function submitReading(formData: FormData): Promise<{ error: string } | void> {
@@ -76,30 +81,29 @@ export async function submitReading(formData: FormData): Promise<{ error: string
   const readingDate = String(formData.get("reading_date") ?? "");
   const photo = formData.get("photo");
 
-  const supabase = await createServerSupabaseClient();
+  if (!isUuid(periodId) || !isUuid(floorId) || !isUuid(serviceId)) {
+    return { error: "Faltan datos de la lectura." };
+  }
+
   const catalog = await loadCatalog();
   const meter = catalog.meters.find(
     (item) => item.floorId === floorId && item.serviceId === serviceId,
   );
   const service = catalog.services.find((item) => item.id === serviceId);
 
-  const { data: period } = await supabase
-    .from("billing_periods")
-    .select("*")
-    .eq("id", periodId)
-    .maybeSingle();
+  const period = await db.queryOne<BillingPeriodRow>(
+    "select * from billing_periods where id = $1",
+    [periodId],
+  );
 
   if (!period) {
     return { error: "El período no existe." };
   }
 
-  const { data: existing } = await supabase
-    .from("meter_readings")
-    .select("*")
-    .eq("period_id", periodId)
-    .eq("floor_id", floorId)
-    .eq("service_id", serviceId)
-    .maybeSingle();
+  const existing = await db.queryOne<MeterReadingRow>(
+    "select * from meter_readings where period_id = $1 and floor_id = $2 and service_id = $3",
+    [periodId, floorId, serviceId],
+  );
 
   const previousApproved = await loadPreviousApprovedValue({
     floorId,
@@ -150,68 +154,68 @@ export async function submitReading(formData: FormData): Promise<{ error: string
   const now = new Date().toISOString();
   const readingDateValue = readingDate || new Date().toISOString().slice(0, 10);
 
-  let readingId = existing?.id;
-  if (!existing) {
-    const { data: inserted, error } = await supabase
-      .from("meter_readings")
-      .insert({
-        period_id: periodId,
-        floor_id: floorId,
-        service_id: serviceId,
-        submitted_value: parsed.value,
-        submitted_by: user.id,
-        submitted_at: now,
-        value: parsed.value,
-        reading_date: readingDateValue,
-        status: "pending",
-        rejection_reason: null,
-      })
-      .select("id")
-      .single();
-    if (error || !inserted) {
-      if (error?.code === "23505") {
-        return { error: "Ya existe una lectura para este piso, servicio y período." };
-      }
-      return { error: error?.message ?? "No se pudo guardar la lectura." };
-    }
-    readingId = inserted.id;
-  } else {
-    const { error } = await supabase
-      .from("meter_readings")
-      .update({
-        submitted_value: existing.submitted_value,
-        submitted_by: user.id,
-        submitted_at: now,
-        value: parsed.value,
-        reading_date: readingDateValue,
-        status: "pending",
-        rejection_reason: null,
-        reviewed_by: null,
-        reviewed_at: null,
-      })
-      .eq("id", existing.id);
-    if (error) {
-      return { error: error.message };
-    }
-  }
-
-  if (!readingId) {
-    return { error: "No se pudo identificar la lectura." };
-  }
-
+  let photoData: Buffer | null = null;
   if (photo instanceof File && photo.size > 0) {
-    const attached = await attachPhoto({
-      supabase,
-      readingId,
-      floorId,
-      periodId,
-      serviceId,
-      userId: user.id,
-      photo,
-    });
-    if ("error" in attached) {
-      return attached;
+    if (photo.size > MAX_PHOTO_BYTES) {
+      return { error: "La fotografía no puede superar 5 MB." };
     }
+    photoData = Buffer.from(await photo.arrayBuffer());
+    if (!isJpeg(photoData)) {
+      return { error: "La fotografía debe ser una imagen JPEG." };
+    }
+  }
+
+  // Lectura y foto se guardan juntas: si algo falla, no queda nada a medias.
+  try {
+    await transaction(user.id, async (tx) => {
+      let readingId = existing?.id;
+      if (!existing) {
+        const inserted = await tx.queryOne<{ id: string }>(
+          `insert into meter_readings
+             (period_id, floor_id, service_id, submitted_value, submitted_by,
+              submitted_at, value, reading_date, status, rejection_reason)
+           values ($1, $2, $3, $4, $5, $6, $4, $7, 'pending', null)
+           returning id`,
+          [periodId, floorId, serviceId, parsed.value, user.id, now, readingDateValue],
+        );
+        readingId = inserted?.id;
+      } else {
+        await tx.query(
+          `update meter_readings
+           set submitted_by = $2,
+               submitted_at = $3,
+               value = $4,
+               reading_date = $5,
+               status = 'pending',
+               rejection_reason = null,
+               reviewed_by = null,
+               reviewed_at = null
+           where id = $1`,
+          [existing.id, user.id, now, parsed.value, readingDateValue],
+        );
+      }
+
+      if (!readingId) {
+        throw new Error("No se pudo identificar la lectura.");
+      }
+
+      if (photoData) {
+        await attachPhoto({
+          tx,
+          readingId,
+          floorId,
+          periodId,
+          serviceId,
+          userId: user.id,
+          data: photoData,
+        });
+      }
+    });
+  } catch (error) {
+    if (dbErrorCode(error) === UNIQUE_VIOLATION) {
+      return { error: "Ya existe una lectura para este piso, servicio y período." };
+    }
+    return { error: dbErrorMessage(error) };
   }
 
   revalidatePath("/mis-lecturas");
@@ -225,22 +229,23 @@ export async function approveReading(formData: FormData): Promise<{ error: strin
   const confirmWarnings = String(formData.get("confirm_warnings") ?? "") === "on";
   const correctedRaw = String(formData.get("corrected_value") ?? "").trim();
 
-  const supabase = await createServerSupabaseClient();
-  const { data: reading } = await supabase
-    .from("meter_readings")
-    .select("*")
-    .eq("id", readingId)
-    .maybeSingle();
+  if (!isUuid(readingId)) {
+    return { error: "No se encontró la lectura." };
+  }
+
+  const reading = await db.queryOne<MeterReadingRow>(
+    "select * from meter_readings where id = $1",
+    [readingId],
+  );
 
   if (!reading) {
     return { error: "No se encontró la lectura." };
   }
 
-  const { data: period } = await supabase
-    .from("billing_periods")
-    .select("*")
-    .eq("id", reading.period_id)
-    .maybeSingle();
+  const period = await db.queryOne<BillingPeriodRow>(
+    "select * from billing_periods where id = $1",
+    [reading.period_id],
+  );
   if (!period) {
     return { error: "La lectura no tiene período." };
   }
@@ -300,21 +305,23 @@ export async function approveReading(formData: FormData): Promise<{ error: strin
     };
   }
 
-  const { error } = await supabase
-    .from("meter_readings")
-    .update({
-      value: nextValue,
-      status: "approved",
-      rejection_reason: null,
-      reviewed_by: admin.id,
-      reviewed_at: new Date().toISOString(),
-      corrected_by: correctedBy,
-      corrected_at: correctedAt,
-    })
-    .eq("id", readingId);
-
-  if (error) {
-    return { error: error.message };
+  try {
+    await transaction(admin.id, (tx) =>
+      tx.query(
+        `update meter_readings
+         set value = $2,
+             status = 'approved',
+             rejection_reason = null,
+             reviewed_by = $3,
+             reviewed_at = $4,
+             corrected_by = $5,
+             corrected_at = $6
+         where id = $1`,
+        [readingId, nextValue, admin.id, new Date().toISOString(), correctedBy, correctedAt],
+      ),
+    );
+  } catch (error) {
+    return { error: dbErrorMessage(error) };
   }
 
   revalidatePath(`/admin/periodos/${reading.period_id}`);
@@ -331,22 +338,23 @@ export async function rejectReading(formData: FormData): Promise<{ error: string
     return { error: "Indica el motivo del rechazo o de la corrección." };
   }
 
-  const supabase = await createServerSupabaseClient();
-  const { data: reading } = await supabase
-    .from("meter_readings")
-    .select("*")
-    .eq("id", readingId)
-    .maybeSingle();
+  if (!isUuid(readingId)) {
+    return { error: "No se encontró la lectura." };
+  }
+
+  const reading = await db.queryOne<MeterReadingRow>(
+    "select * from meter_readings where id = $1",
+    [readingId],
+  );
 
   if (!reading) {
     return { error: "No se encontró la lectura." };
   }
 
-  const { data: period } = await supabase
-    .from("billing_periods")
-    .select("status")
-    .eq("id", reading.period_id)
-    .maybeSingle();
+  const period = await db.queryOne<Pick<BillingPeriodRow, "status">>(
+    "select status from billing_periods where id = $1",
+    [reading.period_id],
+  );
   if (!period) {
     return { error: "La lectura no tiene período." };
   }
@@ -354,18 +362,20 @@ export async function rejectReading(formData: FormData): Promise<{ error: string
     return { error: "El período no está abierto. Reábrelo para revisar lecturas." };
   }
 
-  const { error } = await supabase
-    .from("meter_readings")
-    .update({
-      status: "rejected",
-      rejection_reason: reason,
-      reviewed_by: admin.id,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq("id", readingId);
-
-  if (error) {
-    return { error: error.message };
+  try {
+    await transaction(admin.id, (tx) =>
+      tx.query(
+        `update meter_readings
+         set status = 'rejected',
+             rejection_reason = $2,
+             reviewed_by = $3,
+             reviewed_at = $4
+         where id = $1`,
+        [readingId, reason, admin.id, new Date().toISOString()],
+      ),
+    );
+  } catch (error) {
+    return { error: dbErrorMessage(error) };
   }
 
   revalidatePath(`/admin/periodos/${reading.period_id}`);

@@ -3,12 +3,7 @@
 import { useEffect, useState } from "react";
 import { ActionForm } from "@/components/action-form";
 import { saveBill } from "@/app/actions/bills";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import {
-  BILLS_BUCKET,
-  MAX_BILL_PDF_BYTES,
-  billPdfPath,
-} from "@/lib/storage/paths";
+import { MAX_BILL_PDF_BYTES } from "@/lib/storage/paths";
 import { billChargeFieldName, billChargeFields } from "@/lib/domain/bill-charges";
 import { numberToInputRaw, sumMoneyRaws } from "@/lib/domain/numeric";
 import { countExtractedValues, parseEmcaliBillText } from "@/lib/billing/emcali-parser";
@@ -157,7 +152,6 @@ export function BillForm({
 
   async function action(formData: FormData) {
     const pdf = formData.get("pdf");
-    formData.delete("pdf");
 
     if (pdf instanceof File && pdf.size > 0) {
       if (pdf.type !== "application/pdf" && !pdf.name.toLowerCase().endsWith(".pdf")) {
@@ -166,17 +160,6 @@ export function BillForm({
       if (pdf.size > MAX_BILL_PDF_BYTES) {
         return { error: "El PDF no puede superar 10 MB." };
       }
-
-      const path = billPdfPath(periodId);
-      const supabase = createBrowserSupabaseClient();
-      const { error } = await supabase.storage.from(BILLS_BUCKET).upload(path, pdf, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-      if (error) {
-        return { error: `No se pudo guardar el PDF: ${error.message}` };
-      }
-      formData.set("pdf_storage_path", path);
     }
 
     const result = await saveBill(formData);

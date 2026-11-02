@@ -4,7 +4,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ["pdfjs-dist"],
   experimental: {
     serverActions: {
-      bodySizeLimit: "4mb",
+      // El PDF del recibo (hasta 10 MB) viaja dentro del formulario.
+      bodySizeLimit: "11mb",
     },
   },
 };

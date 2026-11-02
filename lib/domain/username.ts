@@ -1,5 +1,3 @@
-export const AUTH_USERNAME_DOMAIN = "vivienda.local";
-
 const USERNAME_PATTERN = /^[a-z][a-z0-9_-]{1,31}$/;
 
 export function normalizeUsername(raw: string): string {
@@ -25,8 +23,4 @@ export function parseUsername(raw: string): { ok: true; value: string } | { ok: 
     };
   }
   return { ok: true, value };
-}
-
-export function emailForUsername(username: string): string {
-  return `${username}@${AUTH_USERNAME_DOMAIN}`;
 }

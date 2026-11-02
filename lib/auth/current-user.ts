@@ -1,5 +1,8 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { db } from "@/lib/db/pool";
+import { readSessionToken } from "@/lib/auth/session";
+import { hashSessionToken } from "@/lib/auth/session-token";
 import { floorDisplayName } from "@/lib/domain/floors";
 import type { UserRole } from "@/lib/domain/types";
 
@@ -12,53 +15,49 @@ export type CurrentUser = {
   floorName: string | null;
 };
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const supabase = await createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type SessionUserRow = {
+  id: string;
+  username: string;
+  full_name: string;
+  role: UserRole;
+  floor_id: string | null;
+  floor_name: string | null;
+  occupant_name: string | null;
+};
 
-  if (!user) {
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const token = await readSessionToken();
+  if (!token) {
     return null;
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, full_name, role, username")
-    .eq("id", user.id)
-    .maybeSingle();
+  const row = await db.queryOne<SessionUserRow>(
+    `select u.id, u.username, u.full_name, u.role,
+            m.floor_id, f.name as floor_name, f.occupant_name
+     from user_sessions s
+     join users u on u.id = s.user_id
+     left join floor_memberships m on m.user_id = u.id
+     left join floors f on f.id = m.floor_id
+     where s.token_hash = $1 and s.expires_at > now()`,
+    [hashSessionToken(token)],
+  );
 
-  if (!profile) {
+  if (!row) {
     return null;
-  }
-
-  const { data: membership } = await supabase
-    .from("floor_memberships")
-    .select("floor_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  let floorName: string | null = null;
-  if (membership?.floor_id) {
-    const { data: floor } = await supabase
-      .from("floors")
-      .select("name, occupant_name")
-      .eq("id", membership.floor_id)
-      .maybeSingle();
-    floorName = floor
-      ? floorDisplayName(floor.name, floor.occupant_name)
-      : null;
   }
 
   return {
-    id: user.id,
-    username: profile.username,
-    fullName: profile.full_name,
-    role: profile.role,
-    floorId: membership?.floor_id ?? null,
-    floorName,
+    id: row.id,
+    username: row.username,
+    fullName: row.full_name,
+    role: row.role,
+    floorId: row.floor_id,
+    floorName:
+      row.floor_name !== null
+        ? floorDisplayName(row.floor_name, row.occupant_name)
+        : null,
   };
-}
+});
 
 export async function requireUser(): Promise<CurrentUser> {
   const current = await getCurrentUser();

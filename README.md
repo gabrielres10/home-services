@@ -2,7 +2,7 @@
 
 Aplicación web para recopilar, validar y liquidar los recibos y las lecturas de servicios públicos de una vivienda de tres pisos. La liquidación sigue `docs/procedimiento-liquidacion.md` y corrige las fórmulas estáticas del Excel (cupo no usado, división entre cero, `n` fijo).
 
-Prioridad: corrección, trazabilidad y simplicidad. Pensada para uso familiar, con despliegue en Vercel y backend en Supabase.
+Prioridad: corrección, trazabilidad y simplicidad. Pensada para uso familiar. Solo necesita Node.js y una base de datos PostgreSQL común, conectada con una única variable: `DATABASE_URL`.
 
 ## Qué hace esta versión
 
@@ -32,7 +32,7 @@ Como usuario de un piso con contador (Piso 1 o Piso 2) puedes:
 Una sola aplicación Next.js (App Router). No hay servidor propio ni backend separado.
 
 ```text
-Autenticación (Supabase Auth)
+Autenticación (usuario y contraseña; sesiones en PostgreSQL)
     → Gestión de períodos
     → Gestión de recibos (PDF + totales; extractor intercambiable)
     → Gestión de lecturas + fotos
@@ -55,8 +55,8 @@ Hoy, al elegir el PDF, `PdfBillExtractor` lee la página 1 (texto seleccionable)
 
 - Next.js (App Router) y TypeScript estricto
 - Tailwind CSS
-- Supabase: PostgreSQL, Auth, Storage y Row Level Security
-- Vercel para el despliegue
+- PostgreSQL (cliente `pg`): datos, sesiones de inicio de sesión y archivos (PDF y fotos), todo detrás de `DATABASE_URL`
+- Despliegue en cualquier servidor Node.js (Vercel, un VPS, Docker…)
 - Vitest para tests de dominio
 
 ## Modelo de negocio (confirmado)
@@ -71,28 +71,30 @@ Hoy, al elegir el PDF, `PdfBillExtractor` lee la página 1 (texto seleccionable)
 
 ## Estructura de la base de datos
 
-Tablas principales (definidas en `supabase/migrations/001_schema.sql`):
+Tablas principales (definidas en `db/migrations/001_schema.sql`):
 
 | Tabla | Propósito |
 | --- | --- |
-| `profiles` | Perfil 1:1 con `auth.users`. Usuario de inicio de sesión, rol `admin` o `floor_user`. |
+| `users` | Cuentas: usuario de inicio de sesión, nombre, rol `admin` o `floor_user` y hash de la contraseña (scrypt). |
+| `user_sessions` | Sesiones abiertas. La cookie lleva un token aleatorio; aquí solo se guarda su hash. |
 | `floors` | Piso 1 (Nasly), Piso 2 (Lucy), Piso 3 (Juan). |
 | `services` | Energía, agua, alcantarillado. Alcantarillado se marca como `copied` desde agua. |
 | `floor_service_meters` | Qué combinaciones piso/servicio tienen contador. |
 | `floor_memberships` | Usuario de piso → un piso. |
 | `billing_periods` | Período con `label`, `starts_on`, `ends_on`, `status` (`open`, `ready`, `closed`). |
-| `bills` | Recibo 1:1 con el período, PDF y subtotal de otros servicios + alumbrado público. |
+| `bills` | Recibo 1:1 con el período, ruta del PDF y subtotal de otros servicios + alumbrado público. |
 | `bill_service_totals` | Consumo total por servicio en el recibo (kWh / m³). |
 | `bill_service_charges` | Importes en pesos por renglón del recibo (energía, agua, alcantarillado). |
 | `meter_readings` | Lectura vigente por período + piso + servicio. Guarda `submitted_value` (original) y `value` (vigente). Estados: `pending`, `approved`, `rejected`. |
-| `reading_photos` | Fotografías; las anteriores no se borran. |
+| `reading_photos` | Fotografías (ruta del archivo); las anteriores no se borran. |
+| `stored_files` | Contenido de los PDF y las fotos (`bytea`). Se sirven por `/api/files/…` con comprobación de sesión y permisos. |
 | `audit_logs` | Quién cambió qué, con valor anterior y nuevo. Lo rellenan triggers. |
 
 Consumos **no** se persisten: se calculan.
 
 ## Instalación
 
-Requisitos: Node.js 20 o superior y una cuenta de [Supabase](https://supabase.com).
+Requisitos: Node.js 20 o superior y una base de datos PostgreSQL 13 o superior (local, en Docker o de cualquier proveedor).
 
 ```bash
 git clone <url-del-repositorio>
@@ -106,33 +108,24 @@ En macOS/Linux usa `cp .env.example .env.local`.
 Edita `.env.local`:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+DATABASE_URL=postgresql://usuario:contraseña@localhost:5432/vivienda
 ```
 
-Esas claves están en Supabase: **Project Settings → API**.
+Es la única variable. Si tu proveedor exige SSL, añade `?sslmode=require` al final de la URL.
 
-## Configuración de Supabase
+## Configuración de la base de datos
 
-### 1. Proyecto
+### 1. Base de datos vacía
 
-Crea un proyecto en el dashboard de Supabase.
+Crea una base de datos vacía (por ejemplo `vivienda`) y apunta `DATABASE_URL` a ella. Para probar en local con Docker:
 
-### 2. Autenticación
-
-La pantalla de inicio usa **usuario y contraseña**, no correo. Supabase Auth sigue activo por debajo: cada cuenta tiene un correo interno `usuario@vivienda.local`. En **Authentication → Providers** deja habilitado Email.
-
-En **Authentication → Settings** (o Providers → Email) puedes desactivar **Confirm email**. Los comandos `npm run user:*` ya marcan la cuenta como confirmada.
-
-No implementes un sistema propio de contraseñas. Las cuentas se crean en Supabase Auth.
-
-### 3. Esquema, RLS y buckets
-
-Añade en `.env.local` la contraseña de la base de datos (la que definiste al crear el proyecto). Si no la recuerdas: **Project Settings → Database** → **Reset database password**.
-
+```bash
+docker run --name vivienda-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=vivienda -p 5432:5432 -d postgres:16
 ```
-SUPABASE_DB_PASSWORD=tu_contraseña_de_postgres
-```
+
+con `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vivienda`.
+
+### 2. Esquema
 
 En la raíz del proyecto:
 
@@ -140,45 +133,11 @@ En la raíz del proyecto:
 npm run db:schema
 ```
 
-Eso ejecuta los SQL de `supabase/migrations/`: tablas, RLS, auditoría, semilla (3 pisos, 3 servicios, 4 contadores), buckets privados `bills` y `reading-photos`, y el usuario de inicio de sesión.
+Aplica en orden los SQL de `db/migrations/` y anota cuáles ya corrieron en la tabla `schema_migrations`, así que se puede repetir sin riesgo. Crea las tablas, los triggers de auditoría y la semilla (3 pisos, 3 servicios, 4 contadores).
 
-Si `db.<proyecto>.supabase.co` no conecta (IPv6 / red), copia en `.env.local` la URI de **Project Settings → Database → Connect → Session pooler** como `DATABASE_URL` y vuelve a correr el comando. `DATABASE_URL` tiene prioridad sobre `SUPABASE_DB_PASSWORD`.
+### 3. Crear usuarios (admin, Piso 1 y Piso 2)
 
-También puedes pegar el SQL a mano en **SQL Editor**. Si alguna política de Storage dice que ya existe, el script usa `drop policy if exists` y suele ser seguro repetirlo.
-
-### Reiniciar datos de prueba
-
-Cuando un ensayo deje la base sucia:
-
-```bash
-npm run db:reset -- --yes
-```
-
-Eso borra períodos, recibos, lecturas, fotos, auditoría y **usuarios de Auth**. Vuelve a dejar los 3 pisos, 3 servicios y 4 contadores. No toca tablas, RLS ni `.env.local`.
-
-Sin `--yes` no ejecuta nada; solo muestra la ayuda.
-
-Después recrea las cuentas:
-
-```bash
-npm run user:admin -- admin "TuContraseña"
-npm run user:piso-1 -- nasly "TuContraseña"
-npm run user:piso-2 -- lucy "TuContraseña"
-```
-
-### 4. Crear usuarios (admin, Piso 1 y Piso 2)
-
-Estos comandos crean la cuenta en Supabase Auth, asignan el usuario de inicio de sesión, el rol y, si corresponde, el piso.
-
-Primero añade en `.env.local` la clave **secret** / **service_role** (no la anon):
-
-```
-SUPABASE_SERVICE_ROLE_KEY=pega_aqui_la_clave_secret
-```
-
-En el dashboard: **Project Settings → API Keys**. Copia **Secret key** (`sb_secret_...`) o, en **Legacy API Keys**, **`service_role`**. Esa clave no debe ir a Vercel ni usarse en el navegador.
-
-Luego, en la raíz del proyecto:
+Las contraseñas las gestiona la aplicación (hash scrypt en la tabla `users`). Estos comandos crean la cuenta, le asignan el rol y, si corresponde, el piso:
 
 ```bash
 npm run user:admin -- admin "TuContraseña"
@@ -192,15 +151,52 @@ Nombre visible opcional al final:
 npm run user:piso-1 -- nasly "TuContraseña" "Nasly"
 ```
 
-Si esa cuenta (admin, piso 1 o piso 2) ya existe, el comando actualiza usuario, contraseña, rol y piso en lugar de crear otra. En el login usa el usuario (`nasly`), no un correo.
+Si esa cuenta (admin, piso 1 o piso 2) ya existe, el comando actualiza usuario, contraseña, rol y piso en lugar de crear otra, y cierra sus sesiones abiertas. En el login usa el usuario (`nasly`), no un correo.
 
 El Piso 3 no envía lecturas en esta versión; no necesita cuenta.
 
-### 5. Autenticación
+### Reiniciar datos de prueba
 
-En **Authentication → Providers** deja habilitado Email (Supabase lo necesita internamente). En la aplicación se entra con usuario y contraseña.
+Cuando un ensayo deje la base sucia:
 
-En **Authentication → Settings** (o Providers → Email) puedes desactivar **Confirm email**. Los comandos `npm run user:*` ya marcan la cuenta como confirmada.
+```bash
+npm run db:reset -- --yes
+```
+
+Eso borra períodos, recibos, lecturas, fotos, auditoría, sesiones y **usuarios**. Vuelve a dejar los 3 pisos, 3 servicios y 4 contadores. No toca tablas ni triggers.
+
+Sin `--yes` no ejecuta nada; solo muestra la ayuda. Después recrea las cuentas con los comandos del paso 3.
+
+### Recuperar los datos de Supabase
+
+Si vienes de la versión con Supabase, `npm run db:import-supabase` copia a la base nueva los períodos, recibos, lecturas, auditoría, cuentas y los archivos (PDF y fotos). Solo **lee** de Supabase; no modifica nada allí.
+
+1. Deja en `.env.local` estas variables. `DATABASE_URL` pasa a ser la base **nueva**, y la URI de Supabase que antes era `DATABASE_URL` se mueve a `SUPABASE_DATABASE_URL`:
+
+   ```
+   DATABASE_URL=postgresql://usuario:contraseña@localhost:5432/vivienda
+   SUPABASE_DATABASE_URL=postgresql://postgres.REF:CLAVE@aws-0-REGION.pooler.supabase.com:5432/postgres
+   SUPABASE_URL=https://TU_PROYECTO.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=la_clave_secret_o_service_role
+   ```
+
+   `SUPABASE_DATABASE_URL` debe ser la del **Session pooler** (host `...pooler.supabase.com`, usuario `postgres.TU_REF`; en el dashboard, botón **Connect**). La conexión directa (`db.TU_REF.supabase.co`) solo responde por IPv6 y en la mayoría de redes da `ENOTFOUND`.
+
+   `SUPABASE_URL` y la clave son las mismas que ya tenías (`NEXT_PUBLIC_SUPABASE_URL` también vale). Sirven para bajar los archivos por la API de Storage, porque no están dentro de la base.
+
+2. Aplica el esquema en la base nueva, que debe estar vacía: `npm run db:schema`. Comprueba antes que `DATABASE_URL` no apunte a Supabase.
+3. Simulacro, sin escribir nada: `npm run db:import-supabase`. Muestra cuántas filas y archivos hay y los comandos de cada cuenta.
+4. Importa de verdad: `npm run db:import-supabase -- --yes`.
+5. Pon la contraseña de cada cuenta con los comandos que imprimió el paso 3, por ejemplo `npm run user:admin -- admin "NuevaContraseña"`.
+
+Qué conviene saber:
+
+- Se conservan los UUID, así que todas las relaciones, el historial de auditoría y las lecturas siguen enlazados.
+- **Las contraseñas no se copian**: Supabase las guarda con bcrypt y esta app usa scrypt. Las cuentas se importan bloqueadas hasta el paso 5, que reutiliza el mismo usuario y conserva su historial.
+- Las sesiones abiertas no se migran; todos vuelven a iniciar sesión.
+- Si falta algún archivo en Storage, la importación se cancela sin tocar la base nueva. Usa `--allow-missing-files` para continuar sin ellos, o `--skip-files` para importar solo los datos (en ese caso vuelve a subir los PDF de los recibos).
+- La base nueva debe estar limpia. Si ya creaste cuentas con `npm run user:*` antes de importar, corre `npm run db:reset -- --yes` y repite desde el paso 3.
+- Cuando todo esté revisado, puedes borrar las variables `SUPABASE_*` y este script.
 
 ## Desarrollo local
 
@@ -221,13 +217,11 @@ npm test
 
 Cubren diferencia de lecturas, Piso 3 por diferencia, consumo negativo, lectura menor que la anterior, estados, permisos de dominio y lógica de períodos.
 
-Las políticas RLS se verifican en Supabase (SQL Editor o Table Editor iniciando sesión con cada usuario). No hace falta Docker.
+La autorización ya no depende de políticas RLS: vive en la aplicación (`lib/auth/current-user.ts`, `lib/domain/permissions.ts`, las server actions y las rutas `/api/files`). Comprobación manual recomendada:
 
-Comprobación manual recomendada de RLS:
-
-1. Entra como usuario del Piso 1 e intenta leer una fila de `meter_readings` del Piso 2: debe fallar.
-2. Intenta aprobar una lectura desde el cliente del piso: la política solo permite dejar el estado en `pending`.
-3. Las fotos viven en rutas `{floor_id}/...`; un usuario de otro piso no obtiene URL firmada.
+1. Entra como usuario del Piso 1 y abre una foto propia: debe verse. Pega la URL de una foto del Piso 2: debe dar 404.
+2. Con ese mismo usuario, abre `/admin`: debe llevarte a `/mis-lecturas`.
+3. Sin sesión, cualquier ruta (incluidas `/api/files/…`) lleva a `/login` o responde 401.
 
 ## Build
 
@@ -236,25 +230,23 @@ npm run build
 npm start
 ```
 
-El build de producción necesita las mismas variables de entorno.
+`DATABASE_URL` se lee al ejecutar (no al compilar), pero tiene que estar definida en el entorno donde corre `npm start`.
 
-## Despliegue en Vercel
+## Despliegue
+
+Cualquier servidor Node.js sirve: `npm run build` y `npm start`. En Vercel:
 
 1. Sube el repositorio a GitHub/GitLab/Bitbucket.
 2. En [Vercel](https://vercel.com) importa el proyecto (framework: Next.js).
-3. Configura:
-
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
+3. Define `DATABASE_URL`.
 4. Deploy.
 
-No hace falta servicio role key en Vercel: la autorización está en RLS. No publiques los buckets.
+Notas:
 
-En Authentication → URL configuration de Supabase, añade:
-
-- `http://localhost:3000`
-- `https://tu-dominio.vercel.app`
+- En entornos serverless cada instancia abre sus propias conexiones. Usa la URL **con pool** de tu proveedor (PgBouncer, el pooler de Neon, etc.) para no agotar las conexiones de Postgres.
+- La base de datos debe ser alcanzable desde el servidor. El esquema y los usuarios se crean desde tu equipo con `npm run db:schema` y `npm run user:*`, apuntando a esa misma base.
+- La cookie de sesión lleva `Secure` solo cuando la petición llega por HTTPS (también detrás de un proxy que envíe `x-forwarded-proto`), de modo que un despliegue por HTTP en red local también inicia sesión.
+- El PDF del recibo (hasta 10 MB) viaja dentro del formulario. Vercel limita el cuerpo de una petición a unos 4,5 MB; si necesitas PDF más grandes, despliega en un servidor propio.
 
 ## Primer uso (lectura inicial)
 
@@ -288,25 +280,22 @@ Avisos visibles (no se ocultan):
 
 | Variable | Dónde | Uso |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | `.env.local` y Vercel | URL del proyecto |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `.env.local` y Vercel | Clave anónima o publishable (con RLS) |
-| `SUPABASE_SERVICE_ROLE_KEY` | solo `.env.local` | Clave secret / service_role para `npm run user:*`. No la subas a Vercel. |
-| `SUPABASE_DB_PASSWORD` | solo `.env.local` | Contraseña de Postgres para `npm run db:schema`. |
-| `DATABASE_URL` | solo `.env.local`, opcional | URI completa si la conexión directa falla. Tiene prioridad sobre `SUPABASE_DB_PASSWORD`. |
+| `DATABASE_URL` | `.env.local` y el entorno donde corre la app | URL de conexión a PostgreSQL: `postgresql://usuario:contraseña@host:5432/base`. Es la única variable. |
 
 No subas `.env.local` al repositorio.
 
 ## Estructura del código
 
 ```text
-app/                 páginas y server actions
+app/                 páginas, server actions y rutas /api/files
 components/          UI pequeña
 lib/domain/          reglas de negocio (testeable, sin React)
 lib/billing/         extractor de recibo
-lib/data/            lecturas a Supabase
-lib/supabase/        clientes Auth/DB
-lib/storage/         rutas de archivos privados
-supabase/migrations  SQL para pegar en el dashboard
+lib/data/            consultas de catálogo y períodos
+lib/db/              conexión a PostgreSQL (pool, transacciones, tipos)
+lib/auth/            contraseñas, sesiones y usuario actual
+lib/storage/         archivos (PDF y fotos) guardados en la base
+db/migrations        esquema SQL (npm run db:schema)
 tests/               Vitest
 ```
 

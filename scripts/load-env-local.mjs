@@ -1,13 +1,17 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-export function loadEnvLocal() {
-  const envPath = resolve(process.cwd(), ".env.local");
+// Mismos archivos y precedencia que Next.js: el entorno manda sobre
+// .env.local, y este sobre .env. Si ninguno existe no pasa nada:
+// DATABASE_URL puede venir del entorno.
+const ENV_FILES = [".env.local", ".env"];
+
+function readEnvFile(name) {
   let text;
   try {
-    text = readFileSync(envPath, "utf8");
+    text = readFileSync(resolve(process.cwd(), name), "utf8");
   } catch {
-    throw new Error("No encontré .env.local en la raíz del proyecto.");
+    return;
   }
 
   if (text.charCodeAt(0) === 0xfeff) {
@@ -34,5 +38,11 @@ export function loadEnvLocal() {
     if (!process.env[key]) {
       process.env[key] = value;
     }
+  }
+}
+
+export function loadEnvLocal() {
+  for (const name of ENV_FILES) {
+    readEnvFile(name);
   }
 }

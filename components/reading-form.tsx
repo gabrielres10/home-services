@@ -72,7 +72,7 @@ export function ReadingForm({
       <input type="hidden" name="service_id" value={serviceId} />
       {displayPhoto ? (
         <figure className="review-photo">
-          {/* URL firmada o vista previa local: next/image no aplica. */}
+          {/* Ruta privada con sesión o vista previa local: next/image no aplica. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={displayPhoto}

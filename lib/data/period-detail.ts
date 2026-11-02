@@ -1,5 +1,15 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { BILLS_BUCKET, PHOTOS_BUCKET } from "@/lib/storage/paths";
+import { requireAdmin } from "@/lib/auth/current-user";
+import { db } from "@/lib/db/pool";
+import type {
+  AuditLogRow,
+  BillRow,
+  BillServiceChargeRow,
+  BillServiceTotalRow,
+  BillingPeriodRow,
+  MeterReadingRow,
+  ReadingPhotoRow,
+} from "@/lib/db/types";
+import { billPdfUrl, readingPhotoUrl } from "@/lib/storage/paths";
 import {
   hasAnyEarlierPeriod,
   loadCatalog,
@@ -21,42 +31,20 @@ import { toNumber, numberToInputRaw } from "@/lib/format";
 import type { ValidationIssue } from "@/lib/domain/types";
 import { billChargeValuesFromRows } from "@/lib/domain/bill-charges";
 import { resolveSettlement } from "@/lib/domain/settlement";
-
-export async function signedUrl(bucket: string, path: string | null) {
-  if (!path) {
-    return null;
-  }
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .createSignedUrl(path, 60 * 60);
-  if (error) {
-    return null;
-  }
-  return data.signedUrl;
-}
+import { isUuid } from "@/lib/domain/ids";
 
 export async function loadPeriodList() {
-  const supabase = await createServerSupabaseClient();
+  await requireAdmin();
   const catalog = await loadCatalog();
-  const { data: periods, error } = await supabase
-    .from("billing_periods")
-    .select("*")
-    .order("starts_on", { ascending: false });
+  const [periods, readings] = await Promise.all([
+    db.query<BillingPeriodRow>("select * from billing_periods order by starts_on desc"),
+    db.query<Pick<MeterReadingRow, "period_id" | "status">>(
+      "select period_id, status from meter_readings",
+    ),
+  ]);
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const { data: readings, error: readingsError } = await supabase
-    .from("meter_readings")
-    .select("period_id, status");
-  if (readingsError) {
-    throw new Error(readingsError.message);
-  }
-
-  return (periods ?? []).map((period) => {
-    const periodReadings = (readings ?? []).filter(
+  return periods.map((period) => {
+    const periodReadings = readings.filter(
       (row) => row.period_id === period.id,
     );
     const counts = countPeriodReadings({
@@ -75,41 +63,50 @@ export async function loadPeriodList() {
 }
 
 export async function loadPeriodDetail(periodId: string) {
-  const supabase = await createServerSupabaseClient();
+  await requireAdmin();
+  if (!isUuid(periodId)) {
+    return null;
+  }
   const catalog = await loadCatalog();
 
-  const { data: period, error } = await supabase
-    .from("billing_periods")
-    .select("*")
-    .eq("id", periodId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const period = await db.queryOne<BillingPeriodRow>(
+    "select * from billing_periods where id = $1",
+    [periodId],
+  );
   if (!period) {
     return null;
   }
 
-  const [{ data: bill }, { data: readings }, { data: photos }, { data: audits }] =
-    await Promise.all([
-      supabase.from("bills").select("*").eq("period_id", periodId).maybeSingle(),
-      supabase.from("meter_readings").select("*").eq("period_id", periodId),
-      supabase.from("reading_photos").select("*"),
-      supabase
-        .from("audit_logs")
-        .select("*")
-        .eq("entity_type", "meter_reading")
-        .order("occurred_at", { ascending: false })
-        .limit(50),
-    ]);
+  const [bill, readings, photos, audits] = await Promise.all([
+    db.queryOne<BillRow>("select * from bills where period_id = $1", [periodId]),
+    db.query<MeterReadingRow>("select * from meter_readings where period_id = $1", [periodId]),
+    db.query<ReadingPhotoRow>(
+      `select p.*
+       from reading_photos p
+       join meter_readings r on r.id = p.reading_id
+       where r.period_id = $1`,
+      [periodId],
+    ),
+    db.query<AuditLogRow>(
+      `select * from audit_logs
+       where entity_type = 'meter_reading'
+       order by occurred_at desc
+       limit 50`,
+    ),
+  ]);
 
-  const { data: billTotals } = bill
-    ? await supabase.from("bill_service_totals").select("*").eq("bill_id", bill.id)
-    : { data: [] };
-  const { data: billCharges } = bill
-    ? await supabase.from("bill_service_charges").select("*").eq("bill_id", bill.id)
-    : { data: [] };
+  const billTotals = bill
+    ? await db.query<BillServiceTotalRow>(
+        "select * from bill_service_totals where bill_id = $1",
+        [bill.id],
+      )
+    : [];
+  const billCharges = bill
+    ? await db.query<BillServiceChargeRow>(
+        "select * from bill_service_charges where bill_id = $1",
+        [bill.id],
+      )
+    : [];
 
   const previousBySlot = await loadPreviousBySlots({
     slots: catalog.meters,
@@ -117,12 +114,12 @@ export async function loadPeriodDetail(periodId: string) {
   });
   const earlierPeriodExists = await hasAnyEarlierPeriod(period.starts_on);
 
-  const totals = (billTotals ?? []).map((row) => ({
+  const totals = billTotals.map((row) => ({
     serviceId: row.service_id,
     total: Number(row.total_consumption),
   }));
 
-  const currentReadings = (readings ?? []).map((row) => ({
+  const currentReadings = readings.map((row) => ({
     floorId: row.floor_id,
     serviceId: row.service_id,
     value: Number(row.value),
@@ -142,11 +139,11 @@ export async function loadPeriodDetail(periodId: string) {
 
   const totalsByCode = new Map<string, number | null>();
   for (const service of catalog.services) {
-    const total = (billTotals ?? []).find((row) => row.service_id === service.id);
+    const total = billTotals.find((row) => row.service_id === service.id);
     totalsByCode.set(service.code, total ? Number(total.total_consumption) : null);
   }
 
-  const chargeValues = billChargeValuesFromRows(catalog.services, billCharges ?? []);
+  const chargeValues = billChargeValuesFromRows(catalog.services, billCharges);
 
   const billIssues = validateBill({
     energy: totalsByCode.get("energia") ?? null,
@@ -157,13 +154,13 @@ export async function loadPeriodDetail(periodId: string) {
     otherServicesApSubtotal: toNumber(bill?.other_services_ap_subtotal ?? null),
   });
 
-  const pdfUrl = await signedUrl(BILLS_BUCKET, bill?.pdf_storage_path ?? null);
+  const pdfUrl = bill?.pdf_storage_path ? billPdfUrl(periodId) : null;
 
   const readingCards = await Promise.all(
     catalog.meters.map(async (meter) => {
       const floor = catalog.floors.find((item) => item.id === meter.floorId);
       const service = catalog.services.find((item) => item.id === meter.serviceId);
-      const reading = (readings ?? []).find(
+      const reading = readings.find(
         (row) => row.floor_id === meter.floorId && row.service_id === meter.serviceId,
       );
       const previous =
@@ -171,9 +168,9 @@ export async function loadPeriodDetail(periodId: string) {
           (item) => item.floorId === meter.floorId && item.serviceId === meter.serviceId,
         )?.value ?? null;
       const photo = reading
-        ? (photos ?? []).find((item) => item.id === reading.current_photo_id)
+        ? photos.find((item) => item.id === reading.current_photo_id)
         : undefined;
-      const photoUrl = await signedUrl(PHOTOS_BUCKET, photo?.storage_path ?? null);
+      const photoUrl = photo ? readingPhotoUrl(photo.id) : null;
       const consumptionLine = consumptions.lines.find(
         (line) => line.floorId === meter.floorId && line.serviceId === meter.serviceId,
       );
@@ -218,7 +215,7 @@ export async function loadPeriodDetail(periodId: string) {
       );
 
       const readingAudits = reading
-        ? (audits ?? []).filter((item) => item.entity_id === reading.id)
+        ? audits.filter((item) => item.entity_id === reading.id)
         : [];
 
       return {
@@ -240,10 +237,10 @@ export async function loadPeriodDetail(periodId: string) {
 
   const counts = countPeriodReadings({
     expectedCount: catalog.meters.length,
-    submittedCount: (readings ?? []).length,
-    approvedCount: (readings ?? []).filter((row) => row.status === "approved").length,
-    pendingCount: (readings ?? []).filter((row) => row.status === "pending").length,
-    rejectedCount: (readings ?? []).filter((row) => row.status === "rejected").length,
+    submittedCount: readings.length,
+    approvedCount: readings.filter((row) => row.status === "approved").length,
+    pendingCount: readings.filter((row) => row.status === "pending").length,
+    rejectedCount: readings.filter((row) => row.status === "rejected").length,
   });
 
   const readiness = evaluatePeriodReadiness({
