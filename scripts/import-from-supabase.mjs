@@ -88,6 +88,50 @@ function sourceClientConfig(url) {
   };
 }
 
+// Con la clave publicable / anon, Storage trata la petición como anónima y, al
+// ser privados los buckets, responde 404 como si los archivos no existieran.
+function keyProblem(key) {
+  if (key.startsWith("sb_publishable_")) {
+    return "es la clave PUBLICABLE (sb_publishable_…)";
+  }
+  if (key.startsWith("eyJ")) {
+    try {
+      const { role } = JSON.parse(Buffer.from(key.split(".")[1], "base64url").toString());
+      if (role && role !== "service_role") {
+        return `es una clave JWT con role=${role}`;
+      }
+    } catch {
+      // no se puede leer: se deja pasar y que decida Supabase
+    }
+  }
+  return null;
+}
+
+// Si las descargas fallan, la tabla storage.objects (visible con la conexión a la
+// base) dice si los archivos existen y el problema es de autenticación.
+async function storageObjectsReport(source, files) {
+  try {
+    const { rows } = await source.query(
+      "select bucket_id, name from storage.objects where bucket_id = any($1)",
+      [Object.values(BUCKETS)],
+    );
+    const existing = new Set(rows.map((row) => `${row.bucket_id}/${row.name}`));
+    const present = files.filter((file) => existing.has(`${file.bucket}/${file.path}`)).length;
+    if (present === files.length) {
+      return "Los archivos SÍ existen en Supabase Storage: el 404 es de autenticación. " +
+        "Revisa que SUPABASE_SERVICE_ROLE_KEY sea la clave secret (sb_secret_…) o la service_role, no la publicable/anon.";
+    }
+    if (present === 0) {
+      return "Ninguno de esos archivos existe en Supabase Storage (tabla storage.objects), " +
+        "así que no se pueden recuperar por este medio.";
+    }
+    return `En Supabase Storage existen ${present} de esos ${files.length} archivos; ` +
+      "el resto ya no está en Storage.";
+  } catch {
+    return null;
+  }
+}
+
 async function connectOrExplain(client, label) {
   try {
     await client.connect();
@@ -193,14 +237,23 @@ async function main() {
   }
   if (!skipFiles) {
     checkUrl("SUPABASE_URL", storageBase, ["https:", "http:"], "https://TU_PROYECTO.supabase.co");
+    const problem = keyProblem(storageKey);
+    if (problem) {
+      throw new Error(
+        `SUPABASE_SERVICE_ROLE_KEY ${problem}. No sirve para leer los archivos privados.\n` +
+          "Necesitas la clave secret (sb_secret_…) o la service_role legacy: " +
+          "Dashboard → Project Settings → API Keys.",
+      );
+    }
   }
 
   const source = new pg.Client(sourceClientConfig(sourceUrl));
   const target = new pg.Client({ connectionString: targetUrl });
-  await connectOrExplain(source, "la base de ORIGEN (SUPABASE_DATABASE_URL)");
-  await connectOrExplain(target, "la base de DESTINO (DATABASE_URL)");
 
   try {
+    await connectOrExplain(source, "la base de ORIGEN (SUPABASE_DATABASE_URL)");
+    await connectOrExplain(target, "la base de DESTINO (DATABASE_URL)");
+
     // ---- Comprobaciones previas
     const hasSchema = await target.query("select to_regclass('public.stored_files') as t");
     if (!hasSchema.rows[0].t) {
@@ -283,6 +336,8 @@ async function main() {
     if (missing.length > 0) {
       console.error(`\nNo pude bajar ${missing.length} archivo(s) de Storage:`);
       for (const line of missing) console.error(`  - ${line}`);
+      const report = await storageObjectsReport(source, files);
+      if (report) console.error(`\n${report}`);
       if (!allowMissingFiles) {
         throw new Error(
           "Importación cancelada; el destino no se tocó. Revisa SUPABASE_URL / la clave, " +
@@ -365,8 +420,10 @@ async function main() {
     console.log(`  ${"stored_files".padEnd(22)} ${await count(target, "stored_files")}`);
     console.log("\nSiguiente paso: crea la contraseña de cada cuenta con los comandos de arriba.");
   } finally {
-    await source.end();
-    await target.end();
+    // Siempre se cierran, incluso si falló al conectar: salir con sockets a medio
+    // cerrar provoca un "Assertion failed" de libuv en Windows.
+    await source.end().catch(() => undefined);
+    await target.end().catch(() => undefined);
   }
 }
 
@@ -380,5 +437,5 @@ main().catch((error) => {
         "en el dashboard, botón Connect → Session pooler.",
     );
   }
-  process.exit(1);
+  process.exitCode = 1;
 });
